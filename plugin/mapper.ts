@@ -24,19 +24,19 @@ export function mapJiraIssue(jiraIssue: JiraAPIIssue): JiraIssue {
 
   return {
     key: jiraIssue.key,
-    type: mapIssuetype(fields.issuetype.name),
+    type: mapIssuetype(fields.issuetype?.name || ''),
     priority: mapPriority(fields.priority?.name || 'Medium'),
-    title: fields.summary,
+    title: fields.summary || jiraIssue.key,
     assignee: fields.assignee?.displayName || 'Unassigned',
     points: fields.customfield_10000 || null,
-    status: mapStatus(fields.status.name),
+    status: mapStatus(fields.status?.name || ''),
     sprint: fields.sprint?.name || 'Backlog',
     labels: fields.labels || [],
     components: fields.components?.map(c => c.name) || [],
     epicLink: fields.parent?.key || null,
     fixVersion: fields.fixVersions?.[0]?.name || 'Unassigned',
     reporter: fields.reporter?.displayName || 'Unknown',
-    updated: formatDate(fields.updated),
+    updated: fields.updated ? formatDate(fields.updated) : 'Unknown',
   };
 }
 

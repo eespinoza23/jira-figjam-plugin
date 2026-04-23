@@ -24,7 +24,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await axios.get(
       `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
       {
-        params: { jql, maxResults: 100 },
+        params: {
+          jql,
+          maxResults: 100,
+          fields: 'summary,issuetype,priority,assignee,customfield_10000,status,sprint,labels,components,parent,fixVersions,reporter,updated',
+        },
         headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
