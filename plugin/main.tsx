@@ -58,7 +58,13 @@ const App: React.FC = () => {
         credentials: 'include',
       });
       if (response.ok) {
-        setState(prev => ({ ...prev, authenticated: true, error: null }));
+        const data = await response.json().catch(() => ({}));
+        setState(prev => ({
+          ...prev,
+          authenticated: true,
+          error: null,
+          jiraInstance: data.instance || prev.jiraInstance,
+        }));
       } else {
         const data = await response.json().catch(() => ({}));
         setState(prev => ({

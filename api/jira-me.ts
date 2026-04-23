@@ -16,7 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const response = await axios.get('https://api.atlassian.com/me', {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-    res.json({ authenticated: true, user: response.data });
+    const instance = req.cookies.jira_instance || process.env.JIRA_INSTANCE_URL || null;
+    res.json({ authenticated: true, user: response.data, instance });
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
