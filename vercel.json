@@ -1,0 +1,17 @@
+{
+  "buildCommand": "npm install && npm run build",
+  "devCommand": "npm run dev",
+  "outputDirectory": ".vercel/output/functions",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs18.x",
+      "memory": 1024
+    }
+  },
+  "env": {
+    "ATLASSIAN_CLIENT_ID": "@atlassian_client_id",
+    "ATLASSIAN_CLIENT_SECRET": "@atlassian_client_secret",
+    "JIRA_INSTANCE_URL": "@jira_instance_url",
+    "VERCEL_URL": "@vercel_url"
+  }
+}

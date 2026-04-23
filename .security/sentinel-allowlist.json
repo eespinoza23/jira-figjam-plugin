@@ -1,0 +1,6 @@
+{
+  "patterns": [
+    "api/**/*.ts"
+  ],
+  "reason": "API handlers must read environment variables — no credentials stored in code"
+}

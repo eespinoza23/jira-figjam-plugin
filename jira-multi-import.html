@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Jira Multi-Import · FigJam Plugin</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#374151;border-radius:4px}
+
+@keyframes spin    {to{transform:rotate(360deg)}}
+@keyframes fadeUp  {from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideUp {from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes diffGlow{0%,100%{box-shadow:0 0 0 0 rgba(253,224,71,.6)}50%{box-shadow:0 0 0 8px rgba(253,224,71,0)}}
+.spin{animation:spin .75s linear infinite;display:inline-block}
+.diff-pulse{animation:diffGlow 1.8s ease 3}
+
+/* ═══ LAYOUT ═══════════════════════════════════════════ */
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ═══ PANEL ════════════════════════════════════════════ */
+#panel{width:320px;flex-shrink:0;background:#16181F;border-right:1px solid #252830;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+.p-head{padding:14px 16px 12px;border-bottom:1px solid #252830;background:#1C1E27;flex-shrink:0}
+.p-row{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.p-ico{width:30px;height:30px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,#1D4ED8,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:15px}
+.conn{display:flex;align-items:center;gap:6px;background:#0F2A1A;border:1px solid #166534;border-radius:6px;padding:5px 10px;font-size:9px;color:#4ADE80;font-family:'IBM Plex Mono',monospace}
+.conn-dot{width:5px;height:5px;border-radius:50%;background:#22C55E;flex-shrink:0}
+
+.sec{padding:12px 16px 0;flex-shrink:0}
+.lbl{font-size:9px;color:#6B7280;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace;margin-bottom:6px}
+
+#jql{width:100%;background:#0D1117;border:1px solid #252830;border-radius:7px;color:#93C5FD;font-size:10px;font-family:'IBM Plex Mono',monospace;padding:9px 11px;resize:none;outline:none;line-height:1.65}
+#exec-btn{width:100%;margin-top:7px;background:linear-gradient(135deg,#1D4ED8,#2563EB);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .2s}
+#exec-btn:disabled{background:#1E2430;color:#4B5563;cursor:not-allowed}
+
+#type-filter{display:flex;gap:5px;flex-wrap:wrap}
+.tf-btn{border-radius:5px;padding:3px 9px;cursor:pointer;font-size:9px;font-family:'Sora',sans-serif;font-weight:500;border:1px solid #252830;background:#1A1D24;color:#6B7280;transition:all .15s}
+
+/* Selection bar */
+#sel-bar{display:none;flex-shrink:0;align-items:stretch;background:#1A1D24;border-top:1px solid #252830;border-bottom:1px solid #252830;margin-top:10px}
+.sel-l{display:flex;align-items:center;gap:8px;padding:9px 16px;flex:1;cursor:pointer;user-select:none;transition:background .15s}
+.sel-l:hover{background:#1E2230}
+.gchk{width:16px;height:16px;border-radius:4px;border:2px solid #374151;background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700;transition:all .15s}
+.gchk.all{background:#2563EB;border-color:#2563EB}
+.gchk.part{background:#1D4ED8;border-color:#2563EB}
+#imp-all{flex-shrink:0;padding:0 14px;background:none;border:none;border-left:1px solid #252830;color:#4ADE80;font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+#imp-all:hover{background:#0F2318}
+
+#results-wrap{flex:1;display:none;flex-direction:column;overflow:hidden}
+#rlist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding:8px 16px}
+.irow{background:#0D1117;border:1px solid #1E2430;border-radius:7px;padding:8px 10px;cursor:pointer;display:flex;gap:9px;align-items:flex-start;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.irow.sel{background:var(--tcb);border-color:var(--tcx)}
+.ichk{width:14px;height:14px;border-radius:3px;margin-top:2px;flex-shrink:0;border:2px solid #374151;background:transparent;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700;transition:all .15s}
+.ichk.on{background:var(--tc);border-color:var(--tc)}
+#imp-sel{flex-shrink:0;margin:8px 16px 12px;background:linear-gradient(135deg,#059669,#10B981);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;transition:all .2s}
+#imp-sel:disabled{background:#1A1D24;color:#374151;cursor:not-allowed}
+
+#idle{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#2D3148}
+
+/* ═══ CANVAS ════════════════════════════════════════════ */
+#canvas-wrap{flex:1;overflow-y:auto;background-color:#F0F2F5;background-image:radial-gradient(circle,#C9CDD4 1px,transparent 1px);background-size:24px 24px}
+
+#cbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-bottom:1px solid #E5E7EB;padding:9px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cbar-l{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bdg-g{background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;font-size:9px;padding:2px 8px;border-radius:10px;font-family:'IBM Plex Mono',monospace;display:none}
+.bdg-y{background:#FEFCE8;color:#92400E;border:1px solid #FDE047;font-size:9px;padding:2px 8px;border-radius:10px;font-family:'IBM Plex Mono',monospace;display:none}
+.cbar-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chint{font-size:9px;color:#9CA3AF;font-family:'IBM Plex Mono',monospace}
+
+/* Size toggle */
+#size-sel{display:none;align-items:center;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:6px;padding:2px 3px;gap:2px}
+.sz-btn{background:none;border:none;border-radius:4px;color:#9CA3AF;font-size:9px;font-weight:700;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all .15s}
+.sz-btn.on{background:#fff;color:#2563EB;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* Fields button */
+#cfg-btn{display:none;background:#F3F4F6;border:1px solid #E5E7EB;border-radius:6px;color:#6B7280;font-size:9px;padding:4px 10px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-weight:600;transition:all .15s}
+#cfg-btn:hover{background:#E5E7EB;color:#374151}
+
+#cempty{display:flex;align-items:center;justify-content:center;height:calc(100vh - 50px);flex-direction:column;gap:14px}
+#ccontent{padding:28px 20px 80px;display:none}
+.grp{margin-bottom:36px}
+.grp-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.grp-title{font-size:10px;font-weight:700;letter-spacing:.14em;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:5px}
+.grp-count{font-size:9px;border-radius:10px;padding:1px 7px;font-family:'IBM Plex Mono',monospace}
+.cards-row{display:flex;flex-wrap:wrap;gap:12px}
+
+/* ═══ CARD — NEW COMPACT + EXPAND DESIGN ═══════════════ */
+
+/* Size variants — applied via data-size attr on #ccontent */
+#ccontent[data-size="S"] .card{width:188px}
+#ccontent[data-size="M"] .card{width:248px}
+#ccontent[data-size="L"] .card{width:320px}
+#ccontent[data-size="S"] .c-title{font-size:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#ccontent[data-size="L"] .c-title{font-size:12px}
+#ccontent[data-size="S"] .exp-label{display:none}
+
+.card{
+  width:248px;flex-shrink:0;
+  background:#fff;border-radius:12px;
+  border:1.5px solid #E5E7EB;
+  box-shadow:0 2px 8px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  overflow:hidden;position:relative;
+  transition:box-shadow .25s,border-color .25s,transform .15s,width .2s;
+  animation:fadeUp .3s ease forwards;
+  cursor:pointer;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.11)}
+.card.diff{border-color:#FDE047;box-shadow:0 4px 20px rgba(234,179,8,.22)}
+
+/* Top accent bar */
+.c-accent{height:3px;width:100%}
+
+/* ── Compact section (always visible) ── */
+.c-compact{padding:10px 12px 9px;display:flex;flex-direction:column;gap:6px}
+
+/* Row 1: type label | key link + refresh */
+.c-toprow{display:flex;justify-content:space-between;align-items:center}
+.c-type{font-size:8px;font-weight:700;letter-spacing:.1em;font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:4px}
+.c-acts{display:flex;align-items:center;gap:5px}
+.c-link{font-size:8px;font-weight:700;font-family:'IBM Plex Mono',monospace;text-decoration:none;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 5px;border-radius:3px;letter-spacing:.03em;transition:background .15s,color .15s;white-space:nowrap}
+.c-link:hover{background:#2563EB;color:#fff}
+.c-sync{background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:14px;padding:2px 3px;border-radius:3px;line-height:1;transition:color .15s}
+.c-sync:hover{color:#374151}
+.c-sync:disabled{color:#D1D5DB !important;cursor:default}
+
+/* Row 2: title */
+.c-title{font-size:11px;font-weight:600;color:#111827;line-height:1.4;letter-spacing:-.01em}
+
+/* Row 3: compact meta strip — the scannable signal row */
+.c-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:1px}
+.m-avatar{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700}
+.m-sep{width:1px;height:10px;background:#E5E7EB;flex-shrink:0}
+.m-pri{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.m-status{font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.m-pts{font-size:8px;font-weight:700;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 5px;border-radius:4px;font-family:'IBM Plex Mono',monospace}
+.sync-ts{font-size:8px;color:#B0B7C3;font-family:'IBM Plex Mono',monospace;padding:0 12px 6px;display:block}
+
+/* ── Expand toggle button ── */
+.exp-btn{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  width:100%;padding:5px 0;
+  background:none;border:none;border-top:1px solid #F3F4F6;
+  color:#9CA3AF;font-size:9px;font-family:'IBM Plex Mono',monospace;
+  cursor:pointer;transition:background .15s,color .15s;
+}
+.exp-btn:hover{background:#F9FAFB;color:#6B7280}
+.exp-arrow{font-size:8px;transition:transform .25s;display:inline-block}
+.card.expanded .exp-arrow{transform:rotate(180deg)}
+
+/* ── Expanded section ── */
+.c-details{display:none;border-top:1px solid #F3F4F6}
+.card.expanded .c-details{display:block}
+
+/* Fields grid in expanded section */
+.c-fields{padding:10px 12px;display:grid;grid-template-columns:1fr 1fr;gap:7px 10px}
+.fcell{display:flex;flex-direction:column;gap:2px;border-radius:4px;padding:3px 5px;border:1px solid transparent;transition:background .4s}
+.fcell.hl{background:#FEFCE8;border-color:#FEF08A}
+.flbl{font-size:8px;color:#9CA3AF;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;font-weight:500}
+.fval{font-size:9px;font-weight:500;color:#374151;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.fa{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700}
+.fpts{font-size:9px;font-weight:700;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace}
+.fsta{font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px}
+
+.detrow{padding:0 12px 7px}
+.detlbl{font-size:8px;color:#9CA3AF;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace;font-weight:500;margin-bottom:2px}
+.detval{font-size:9px;color:#6B7280}
+.detpills{padding:0 12px 8px;display:flex;flex-wrap:wrap;gap:4px}
+.comp-pill{font-size:8px;color:#0284C7;background:#E0F2FE;border:1px solid #BAE6FD;border-radius:4px;padding:1px 5px;font-family:'IBM Plex Mono',monospace}
+.lbl-pill{font-size:8px;color:#6B7280;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:20px;padding:1px 6px;font-family:'IBM Plex Mono',monospace}
+.edit-hint{font-size:8px;color:#9CA3AF;font-family:'IBM Plex Mono',monospace;text-align:right;padding:2px 10px 7px;opacity:0;transition:opacity .2s;pointer-events:none}
+.card:hover .edit-hint{opacity:1}
+
+.diff-badge{position:absolute;top:8px;right:40px;background:#FEF08A;border:1px solid #EAB308;border-radius:4px;padding:1px 5px;font-size:7px;font-weight:700;color:#92400E;letter-spacing:.08em;font-family:'IBM Plex Mono',monospace}
+
+/* ═══ SHEETS / OVERLAYS ═════════════════════════════════ */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:98;backdrop-filter:blur(2px)}
+.overlay.open{display:block}
+.bsheet{display:none;position:fixed;bottom:0;left:0;right:0;background:#1C1E27;border-top:1px solid #30363D;border-radius:16px 16px 0 0;z-index:99;max-height:88vh;overflow-y:auto;animation:slideUp .3s cubic-bezier(.32,.72,0,1)}
+.bhandle{width:36px;height:4px;background:#374151;border-radius:2px;margin:12px auto 0}
+.bheader{padding:14px 20px 12px;border-bottom:1px solid #252830;display:flex;align-items:center;justify-content:space-between}
+.btitle{font-size:13px;font-weight:700;color:#F1F5F9;display:flex;align-items:center;gap:8px}
+.xbtn{background:#252830;border:none;color:#8B949E;width:28px;height:28px;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Toggle rows in config sheet */
+.tog-row{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:#0D1117;border:1px solid #21262D;border-radius:7px;cursor:pointer;transition:border-color .15s}
+.tog-row:hover{border-color:#374151}
+.tog-row.on{border-color:#2563EB44}
+.tog-lbl{font-size:12px;color:#8B949E;transition:color .15s}
+.tog-row.on .tog-lbl{color:#E2E8F0;font-weight:600}
+.tog-track{width:36px;height:20px;border-radius:10px;background:#374151;position:relative;transition:background .2s;flex-shrink:0}
+.tog-track.on{background:#2563EB}
+.tog-thumb{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s}
+.tog-track.on .tog-thumb{left:18px}
+
+/* Edit drawer fields */
+.dklink{font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:2px 7px;border-radius:4px;text-decoration:none}
+.dklink:hover{background:#2563EB;color:#fff}
+.dbody{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.dfield{display:flex;flex-direction:column;gap:5px}
+.dlbl{font-size:9px;color:#6B7280;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace;font-weight:500}
+.dinp,.dsel,.dta{background:#0D1117;border:1px solid #30363D;border-radius:7px;color:#E2E8F0;font-family:'Sora',sans-serif;font-size:12px;padding:9px 12px;outline:none;width:100%;transition:border-color .15s}
+.dinp:focus,.dsel:focus,.dta:focus{border-color:#2563EB}
+.dta{resize:none;line-height:1.5}
+.dsel option{background:#1C1E27}
+.pts-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pts-inp{width:90px;background:#0D1117;border:1px solid #30363D;border-radius:7px;color:#2563EB;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;padding:8px 12px;outline:none;text-align:center;transition:border-color .15s}
+.pts-inp:focus{border-color:#2563EB}
+.pts-hint{font-size:10px;color:#4B5563;font-family:'IBM Plex Mono',monospace;line-height:1.6}
+.pts-clr{background:none;border:1px solid #30363D;border-radius:6px;color:#6B7280;font-size:9px;padding:5px 9px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all .15s}
+.pts-clr:hover{border-color:#EF4444;color:#EF4444}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dnote{font-size:9px;color:#4B5563;font-family:'IBM Plex Mono',monospace;text-align:center;padding:0 20px 12px}
+.dfooter{padding:0 20px 20px;display:flex;gap:10px}
+.sbtn{flex:1;background:linear-gradient(135deg,#059669,#10B981);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:12px;cursor:pointer;font-family:'Sora',sans-serif}
+.cbtn{background:#252830;border:1px solid #30363D;border-radius:8px;color:#8B949E;font-size:12px;padding:12px 18px;cursor:pointer;font-family:'Sora',sans-serif}
+
+/* ═══ MOBILE ════════════════════════════════════════════ */
+#tabbar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;background:#1C1E27;border-top:1px solid #252830;height:56px}
+.tabbtn{flex:1;border:none;background:none;color:#6B7280;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:color .2s}
+.tabbtn.on{color:#2563EB}
+#tbadge{background:#2563EB;color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;display:none}
+
+@media(max-width:700px){
+  #panel{width:100%;border-right:none}
+  #canvas-wrap{display:none}
+  #tabbar{display:flex}
+  body{padding-bottom:56px}
+  #app{display:block;height:calc(100vh - 56px);overflow:hidden}
+  #panel{height:calc(100vh - 56px)}
+  .mc #panel{display:none}
+  .mc #canvas-wrap{display:block;height:calc(100vh - 56px)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══ PANEL ══════════════════════════════════════════════════ -->
+<div id="panel">
+  <div class="p-head">
+    <div class="p-row">
+      <div class="p-ico">🔌</div>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#F1F5F9">Jira Multi-Import</div>
+        <div style="font-size:9px;color:#4B5563;font-family:'IBM Plex Mono',monospace;margin-top:1px">for FigJam · CRT_ART</div>
+      </div>
+    </div>
+    <div class="conn"><div class="conn-dot"></div>intact.atlassian.net · API Token ✓</div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">JQL QUERY</div>
+    <textarea id="jql" rows="3">project = CRT AND sprint in openSprints() AND type in (Epic, Story, Bug, Feature)</textarea>
+    <button id="exec-btn" onclick="execJQL()">▶ Execute JQL</button>
+  </div>
+
+  <div class="sec" id="filter-sec" style="display:none">
+    <div class="lbl">FILTER TYPE</div>
+    <div id="type-filter">
+      <button class="tf-btn active" data-t="All"     onclick="setFilter('All')">All</button>
+      <button class="tf-btn" data-t="Epic"    onclick="setFilter('Epic')">⚡ Epic</button>
+      <button class="tf-btn" data-t="Feature" onclick="setFilter('Feature')">✨ Feature</button>
+      <button class="tf-btn" data-t="Story"   onclick="setFilter('Story')">📖 Story</button>
+      <button class="tf-btn" data-t="Bug"     onclick="setFilter('Bug')">🐛 Bug</button>
+    </div>
+  </div>
+
+  <div id="sel-bar">
+    <div class="sel-l" onclick="toggleAll()">
+      <div class="gchk" id="gchk"></div>
+      <span id="sel-lbl" style="font-size:9px;color:#8B949E;font-family:'IBM Plex Mono',monospace">0 of 0 selected</span>
+    </div>
+    <button id="imp-all" onclick="importAll()">⬆ Import All</button>
+  </div>
+
+  <div id="results-wrap">
+    <div id="rlist"></div>
+    <button id="imp-sel" disabled onclick="importSel()">Select items to import</button>
+  </div>
+
+  <div id="idle">
+    <div style="font-size:32px">⬡</div>
+    <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;text-align:center;line-height:1.7;color:#2D3148">Run a JQL query<br>to get started</div>
+  </div>
+</div>
+
+<!-- ══ CANVAS ═════════════════════════════════════════════════ -->
+<div id="canvas-wrap">
+  <div id="cbar">
+    <div class="cbar-l">
+      <span style="font-size:11px;color:#9CA3AF;font-family:'IBM Plex Mono',monospace">FigJam Canvas</span>
+      <span id="bdg-p" class="bdg-g"></span>
+      <span id="bdg-u" class="bdg-y"></span>
+    </div>
+    <div class="cbar-r">
+      <span class="chint" id="chint">Execute JQL →</span>
+      <div id="size-sel">
+        <button class="sz-btn" data-sz="S" onclick="setSize('S')">S</button>
+        <button class="sz-btn on" data-sz="M" onclick="setSize('M')">M</button>
+        <button class="sz-btn" data-sz="L" onclick="setSize('L')">L</button>
+      </div>
+      <button id="cfg-btn" onclick="openCfg()">⚙ Fields</button>
+    </div>
+  </div>
+  <div id="cempty">
+    <div style="font-size:40px;opacity:.15">⬡</div>
+    <div style="font-size:11px;color:#C4C9D4;font-family:'IBM Plex Mono',monospace" id="cempty-txt">Canvas is empty</div>
+  </div>
+  <div id="ccontent" data-size="M"></div>
+</div>
+</div>
+
+<!-- ══ MOBILE TABS ════════════════════════════════════════════ -->
+<div id="tabbar">
+  <button class="tabbtn on" id="tb-p" onclick="switchTab('panel')"><span style="font-size:18px">🔌</span><span>Plugin</span></button>
+  <button class="tabbtn"    id="tb-c" onclick="switchTab('canvas')"><span style="font-size:18px">🗂️</span><span>Canvas</span><span id="tbadge"></span></button>
+</div>
+
+<!-- ══ FIELD CONFIG SHEET ═════════════════════════════════════ -->
+<div id="cfg-ov" class="overlay" onclick="closeCfg()"></div>
+<div id="cfg-sh" class="bsheet">
+  <div class="bhandle"></div>
+  <div class="bheader">
+    <div class="btitle">⚙️ Visible Card Fields</div>
+    <button class="xbtn" onclick="closeCfg()">✕</button>
+  </div>
+  <div style="padding:10px 20px 4px;font-size:9px;color:#4B5563;font-family:'IBM Plex Mono',monospace;letter-spacing:.1em">SHOWN IN COMPACT + EXPANDED VIEW</div>
+  <div id="cfg-body" style="padding:8px 20px;display:flex;flex-direction:column;gap:7px"></div>
+  <div style="padding:12px 20px 20px">
+    <button onclick="applyCfg()" style="width:100%;background:linear-gradient(135deg,#1D4ED8,#2563EB);border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;padding:12px;cursor:pointer;font-family:'Sora',sans-serif">Apply to All Cards</button>
+  </div>
+</div>
+
+<!-- ══ EDIT DRAWER ════════════════════════════════════════════ -->
+<div id="drw-ov" class="overlay" onclick="closeDrawer()"></div>
+<div id="drw-sh" class="bsheet">
+  <div class="bhandle"></div>
+  <div class="bheader">
+    <div class="btitle">
+      <span id="d-icon"></span>
+      <span id="d-type"></span>
+      <a id="d-key" class="dklink" href="#" target="_blank" rel="noreferrer"></a>
+    </div>
+    <button class="xbtn" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="dbody" id="dbody"></div>
+  <div class="dnote">⚡ Saves locally · syncs to Jira via proxy on confirm</div>
+  <div class="dfooter">
+    <button class="cbtn" onclick="closeDrawer()">Cancel</button>
+    <button class="sbtn" onclick="saveEdit()">✓ &nbsp;Save &amp; Sync to Jira</button>
+  </div>
+</div>
+
+<script>
+// ══ DATA ══════════════════════════════════════════════════════
+const ISSUES=[
+  {key:"CRT-88", type:"Epic",    priority:"High",    title:"PI 26.2 — Claims Processing Modernisation",              assignee:"M. Torres",  points:null,status:"In Progress",sprint:"PI 26.2",  labels:["modernisation","claims","core"],components:["Claims Engine","Core API"],  epicLink:null,    fixVersion:"PI 26.2",reporter:"E. Edison",  updated:"2h ago"},
+  {key:"CRT-94", type:"Epic",    priority:"Medium",  title:"Self-Service Portal — Phase 2",                           assignee:"J. Nguyen",  points:null,status:"To Do",      sprint:"PI 26.2",  labels:["portal","self-service"],        components:["Portal","Frontend"],        epicLink:null,    fixVersion:"PI 26.2",reporter:"E. Edison",  updated:"1d ago"},
+  {key:"CRT-102",type:"Feature", priority:"High",    title:"Bulk export of claim summaries to CSV",                   assignee:"J. Nguyen",  points:13,  status:"To Do",      sprint:"Sprint 5", labels:["export","data"],                components:["Reporting"],               epicLink:"CRT-88",fixVersion:"PI 26.2",reporter:"M. Torres",  updated:"3h ago"},
+  {key:"CRT-108",type:"Feature", priority:"High",    title:"Notification centre for claim status updates",            assignee:"M. Torres",  points:8,   status:"In Progress",sprint:"Sprint 4", labels:["notifications","UX"],           components:["Notifications","Frontend"], epicLink:"CRT-88",fixVersion:"PI 26.2",reporter:"M. Torres",  updated:"5h ago"},
+  {key:"CRT-103",type:"Story",   priority:"High",    title:"As a claims adjuster I can view document history inline", assignee:"A. Leblanc", points:5,   status:"In Progress",sprint:"Sprint 4", labels:["claims","UI"],                  components:["Claims Engine"],           epicLink:"CRT-88",fixVersion:"PI 26.2",reporter:"A. Leblanc", updated:"1h ago"},
+  {key:"CRT-105",type:"Story",   priority:"Medium",  title:"Implement OCR extraction for uploaded PDFs",              assignee:"D. Kim",     points:8,   status:"To Do",      sprint:"Sprint 4", labels:["backend","OCR"],                components:["Backend","AI/ML"],         epicLink:"CRT-88",fixVersion:"PI 26.2",reporter:"D. Kim",    updated:"2d ago"},
+  {key:"CRT-110",type:"Story",   priority:"Low",     title:"Add pagination to claims search results",                 assignee:"D. Kim",     points:3,   status:"Done",       sprint:"Sprint 3", labels:["search"],                       components:["Search"],                  epicLink:"CRT-94",fixVersion:"PI 26.1",reporter:"D. Kim",    updated:"5d ago"},
+  {key:"CRT-104",type:"Bug",     priority:"Critical",title:"Policy number field truncates on mobile viewport",        assignee:"A. Leblanc", points:2,   status:"In Progress",sprint:"Sprint 4", labels:["mobile","UI"],                  components:["Frontend","Mobile"],       epicLink:"CRT-88",fixVersion:"PI 26.2",reporter:"A. Leblanc", updated:"30m ago"},
+  {key:"CRT-107",type:"Bug",     priority:"Low",     title:"Date filter resets after page refresh",                   assignee:"Unassigned", points:1,   status:"To Do",      sprint:"Sprint 5", labels:["filter"],                       components:["Frontend"],               epicLink:"CRT-94",fixVersion:"PI 26.2",reporter:"Unassigned",updated:"1d ago"},
+];
+const RC={"CRT-103":{status:"Done",points:5},"CRT-108":{status:"In Progress",assignee:"D. Kim"},"CRT-104":{status:"Done",priority:"High"}};
+const TC={Epic:{color:"#7C3AED",icon:"⚡"},Feature:{color:"#0284C7",icon:"✨"},Story:{color:"#2563EB",icon:"📖"},Bug:{color:"#DC2626",icon:"🐛"}};
+const PC={Critical:{color:"#EF4444",dot:"🔴"},High:{color:"#F97316",dot:"🟠"},Medium:{color:"#EAB308",dot:"🟡"},Low:{color:"#9CA3AF",dot:"⚪"}};
+const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280",b:"#E5E7EB"},"In Progress":{bg:"#EFF6FF",c:"#2563EB",b:"#BFDBFE"},Done:{bg:"#F0FDF4",c:"#16A34A",b:"#BBF7D0"}};
+const ASSIGNEES=["M. Torres","A. Leblanc","D. Kim","J. Nguyen","E. Edison","Unassigned"];
+
+// Field definitions — drive both card display AND edit drawer
+const FIELDS=[
+  {k:"assignee",  label:"Assignee",      def:true},
+  {k:"priority",  label:"Priority",      def:true},
+  {k:"points",    label:"Story Points",  def:true},
+  {k:"status",    label:"Status",        def:true},
+  {k:"sprint",    label:"Sprint / Iteration",def:true},
+  {k:"labels",    label:"Labels",        def:true},
+  {k:"components",label:"Components",    def:false},
+  {k:"epicLink",  label:"Epic Link",     def:false},
+  {k:"fixVersion",label:"Fix Version",   def:false},
+  {k:"reporter",  label:"Reporter",      def:false},
+  {k:"updated",   label:"Last Updated",  def:false},
+];
+
+// ══ STATE ═════════════════════════════════════════════════════
+let phase="idle", sel=new Set(), imported=[], diffs={}, cooldowns={}, synced={};
+let filt="All", vis=new Set(FIELDS.filter(f=>f.def).map(f=>f.k));
+let editKey=null, refreshing=null;
+
+// ══ HELPERS ═══════════════════════════════════════════════════
+const fv=k=>vis.has(k);
+const ini=n=>n==="Unassigned"?"?":n.split(" ").map(x=>x[0]).join("");
+function av(name,color,cls="m-avatar"){
+  const bg=name==="Unassigned"?"#E5E7EB":color+"22";
+  const br=name==="Unassigned"?"#D1D5DB":color+"55";
+  const fc=name==="Unassigned"?"#9CA3AF":color;
+  return `<div class="${cls}" style="background:${bg};border:1.5px solid ${br};color:${fc}">${ini(name)}</div>`;
+}
+const priColors={Critical:"#EF4444",High:"#F97316",Medium:"#EAB308",Low:"#D1D5DB"};
+
+// ══ CARD BUILDER ══════════════════════════════════════════════
+function buildCard(issue,cd={},delay=0){
+  const tc=TC[issue.type], pc=PC[issue.priority], sc=SC[issue.status];
+  const hasDiff=Object.keys(cd).length>0;
+  const onCD=cooldowns[issue.key]&&Date.now()<cooldowns[issue.key];
+  const syncTs=synced[issue.key]||"";
+
+  // ── Compact meta row ──
+  const meta=`<div class="c-meta">
+    ${av(issue.assignee,tc.color)}
+    <div class="m-sep"></div>
+    <div class="m-pri" style="background:${priColors[issue.priority]}" title="${issue.priority} priority"></div>
+    <span class="m-status" style="color:${sc.c};background:${sc.bg};border:1px solid ${sc.b}">${issue.status}</span>
+    ${issue.points!==null?`<span class="m-pts">${issue.points}p</span>`:""}
+  </div>`;
+
+  // ── Expanded: grid fields ──
+  const gridDefs=[
+    {k:"assignee",  lbl:"ASSIGNEE",  html:`${av(issue.assignee,tc.color,"fa")}<span>${issue.assignee}</span>`},
+    {k:"priority",  lbl:"PRIORITY",  html:`<span style="color:${pc.color}">${pc.dot} ${issue.priority}</span>`},
+    {k:"points",    lbl:"STORY PTS", html:issue.points!==null?`<span class="fpts">${issue.points} pts</span>`:`<span style="color:#D1D5DB">— N/A</span>`},
+    {k:"status",    lbl:"STATUS",    html:`<span class="fsta" style="color:${sc.c};background:${sc.bg};border:1px solid ${sc.b}">${issue.status}</span>`},
+    {k:"reporter",  lbl:"REPORTER",  html:`<span>${issue.reporter||"—"}</span>`},
+    {k:"fixVersion",lbl:"FIX VER.",  html:`<span>${issue.fixVersion||"—"}</span>`},
+    {k:"updated",   lbl:"UPDATED",   html:`<span>${issue.updated||"—"}</span>`},
+  ];
+  const vGrid=gridDefs.filter(f=>fv(f.k));
+  const gridHTML=vGrid.length
+    ?`<div class="c-fields" style="grid-template-columns:${vGrid.length===1?"1fr":"1fr 1fr"}">${
+        vGrid.map(f=>`<div class="fcell${cd[f.k]?" hl":""}"><span class="flbl">${f.lbl}</span><span class="fval">${f.html}</span></div>`).join("")
+      }</div>`:""
+
+  const sprintH =fv("sprint")&&issue.sprint?`<div class="detrow"><div class="detlbl">SPRINT / ITERATION</div><div class="detval">${issue.sprint}</div></div>`:"";
+  const epicH   =fv("epicLink")&&issue.epicLink?`<div class="detrow"><div class="detlbl">EPIC LINK</div><div class="detval" style="color:#7C3AED">⚡ ${issue.epicLink}</div></div>`:"";
+  const compH   =fv("components")&&issue.components?.length?`<div class="detrow"><div class="detlbl">COMPONENTS</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px">${issue.components.map(c=>`<span class="comp-pill">${c}</span>`).join("")}</div></div>`:"";
+  const lblH    =fv("labels")&&issue.labels?.length?`<div class="detpills">${issue.labels.map(l=>`<span class="lbl-pill">${l}</span>`).join("")}</div>`:"";
+
+  const hasExp=gridHTML||sprintH||epicH||compH||lblH;
+
+  return `<div class="card${hasDiff?" diff":""}" id="card-${issue.key}" style="animation-delay:${delay}ms" onclick="openDrawer('${issue.key}')">
+    <div class="c-accent" style="background:${tc.color}"></div>
+
+    <!-- Always-visible compact strip -->
+    <div class="c-compact">
+      <div class="c-toprow">
+        <div class="c-type" style="color:${tc.color}">${tc.icon} ${issue.type.toUpperCase()}</div>
+        <div class="c-acts">
+          <a class="c-link" href="https://intact.atlassian.net/browse/${issue.key}" target="_blank" rel="noreferrer" onclick="event.stopPropagation()">${issue.key} ↗</a>
+          <button class="c-sync" id="rb-${issue.key}"
+            onclick="event.stopPropagation();doRefresh('${issue.key}')"
+            title="${onCD?"On cooldown — synced recently":"Sync from Jira"}"
+            ${onCD?"disabled":""}>↻</button>
+        </div>
+      </div>
+      <div class="c-title">${issue.title}</div>
+      ${meta}
+    </div>
+
+    ${syncTs?`<span class="sync-ts">↻ Synced ${syncTs}</span>`:""}
+    ${hasDiff?`<div class="diff-badge diff-pulse">UPDATED</div>`:""}
+
+    <!-- Expand toggle (only if there are extra fields to show) -->
+    ${hasExp?`
+    <button class="exp-btn" onclick="event.stopPropagation();toggleExp('${issue.key}',this)">
+      <span class="exp-arrow">▼</span>
+      <span class="exp-label">Details</span>
+    </button>
+    <div class="c-details" id="exp-${issue.key}">
+      ${gridHTML}${sprintH}${epicH}${compH}${lblH}
+      <div class="edit-hint">✎ tap card body to edit</div>
+    </div>`
+    :`<div class="edit-hint">✎ tap to edit</div>`}
+  </div>`;
+}
+
+// ══ CANVAS RENDER ═════════════════════════════════════════════
+function renderCanvas(){
+  const cc=document.getElementById("ccontent"), ce=document.getElementById("cempty");
+  if(!imported.length){ce.style.display="flex";cc.style.display="none";return;}
+  ce.style.display="none";cc.style.display="block";
+
+  const groups=["Epic","Feature","Story","Bug"]
+    .map(t=>({type:t,items:imported.filter(i=>i.type===t)})).filter(g=>g.items.length);
+
+  cc.innerHTML=groups.map(g=>{
+    const tc=TC[g.type];
+    return `<div class="grp">
+      <div class="grp-head">
+        <div style="height:1px;width:12px;background:${tc.color}88"></div>
+        <div class="grp-title" style="color:${tc.color}">${tc.icon} ${g.type.toUpperCase()}S</div>
+        <div class="grp-count" style="background:${tc.color}18;border:1px solid ${tc.color}44;color:${tc.color}">${g.items.length}</div>
+        <div style="flex:1;height:1px;background:${tc.color}22"></div>
+      </div>
+      <div class="cards-row">${g.items.map((i,idx)=>buildCard(i,diffs[i.key]||{},idx*55)).join("")}</div>
+    </div>`;
+  }).join("")+`<div style="display:flex;align-items:center;gap:16px;font-size:9px;color:#9CA3AF;font-family:'IBM Plex Mono',monospace;flex-wrap:wrap;margin-top:4px">
+    <div style="display:flex;align-items:center;gap:5px"><div style="width:10px;height:10px;background:#FEF08A;border:1px solid #EAB308;border-radius:2px"></div>Yellow = changed since last sync</div>
+    <div>· ▼ expand card for details · tap card to edit</div>
+  </div>`;
+
+  const bp=document.getElementById("bdg-p"), bu=document.getElementById("bdg-u");
+  bp.textContent=`${imported.length} cards placed`;bp.style.display="inline";
+  const dc=Object.keys(diffs).length;
+  bu.textContent=`⚡ ${dc} updated`;bu.style.display=dc?"inline":"none";
+  document.getElementById("tbadge").textContent=imported.length;
+  document.getElementById("tbadge").style.display="inline";
+  document.getElementById("cfg-btn").style.display="inline";
+  document.getElementById("size-sel").style.display="flex";
+}
+
+// ══ RESULTS LIST ══════════════════════════════════════════════
+function renderList(){
+  const filtered=filt==="All"?ISSUES:ISSUES.filter(i=>i.type===filt);
+  document.getElementById("rlist").innerHTML=filtered.map(issue=>{
+    const tc=TC[issue.type], s=sel.has(issue.key);
+    return `<div class="irow${s?" sel":""}" style="--tc:${tc.color};--tcb:${tc.color}18;--tcx:${tc.color}55" onclick="toggleIssue('${issue.key}')">
+      <div class="ichk${s?" on":""}" style="--tc:${tc.color}">${s?"✓":""}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:2px">
+          <span style="font-size:8px;color:${tc.color};font-family:'IBM Plex Mono',monospace">${tc.icon} ${issue.type}</span>
+          <span style="font-size:8px;color:#374151;font-family:'IBM Plex Mono',monospace">${issue.key}</span>
+        </div>
+        <div style="font-size:10px;color:#C9D1D9;line-height:1.4;font-weight:500">${issue.title}</div>
+        <div style="font-size:8px;color:#4B5563;margin-top:3px;font-family:'IBM Plex Mono',monospace">${issue.assignee.split(" ")[0]} · ${issue.points!==null?issue.points+"pts":"—"} · ${issue.priority}</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  const total=filtered.length, sc=[...sel].filter(k=>filtered.some(i=>i.key===k)).length;
+  document.getElementById("sel-lbl").textContent=`${sc} of ${total} selected`;
+  const gc=document.getElementById("gchk");
+  gc.className="gchk"+(sc===0?"":(sc===total?" all":" part"));
+  gc.textContent=sc===total?"✓":(sc>0?"–":"");
+  const btn=document.getElementById("imp-sel");
+  btn.disabled=sel.size===0;
+  btn.textContent=sel.size>0?`↗  Import ${sel.size} selected`:"Select items to import";
+}
+
+// ══ ACTIONS ═══════════════════════════════════════════════════
+function execJQL(){
+  const btn=document.getElementById("exec-btn");
+  btn.disabled=true;btn.innerHTML=`<span class="spin">⟳</span> Fetching…`;
+  document.getElementById("chint").textContent="Fetching from Jira…";
+  setTimeout(()=>{
+    phase="results";btn.disabled=false;btn.innerHTML="▶ Execute JQL";
+    document.getElementById("idle").style.display="none";
+    document.getElementById("filter-sec").style.display="block";
+    document.getElementById("sel-bar").style.display="flex";
+    const rw=document.getElementById("results-wrap");
+    rw.style.display="flex";rw.style.flexDirection="column";rw.style.flex="1";rw.style.overflow="hidden";
+    document.getElementById("chint").textContent="Select items and click Import";
+    document.getElementById("cempty-txt").textContent="Select issues → Import to place cards here";
+    sel=new Set();renderList();
+  },1000);
+}
+
+function setFilter(t){
+  filt=t;
+  document.querySelectorAll(".tf-btn").forEach(b=>{
+    const bt=b.dataset.t,tc=TC[bt],a=bt===t;
+    b.classList.toggle("active",a);
+    b.style.background=a?(tc?tc.color+"22":"#1D4ED822"):"#1A1D24";
+    b.style.borderColor=a?(tc?tc.color:"#2563EB"):"#252830";
+    b.style.color=a?(tc?tc.color:"#60A5FA"):"#6B7280";
+  });
+  renderList();
+}
+
+function toggleIssue(k){sel.has(k)?sel.delete(k):sel.add(k);renderList();}
+function toggleAll(){
+  const f=filt==="All"?ISSUES:ISSUES.filter(i=>i.type===filt);
+  const all=f.every(i=>sel.has(i.key));
+  f.forEach(i=>all?sel.delete(i.key):sel.add(i.key));
+  renderList();
+}
+function importAll(){ISSUES.forEach(i=>sel.add(i.key));doImport();}
+function importSel(){doImport();}
+function doImport(){
+  imported=ISSUES.filter(i=>sel.has(i.key));
+  diffs={};phase="canvas";
+  document.getElementById("chint").textContent="▼ expand cards for details · tap to edit · ↻ to sync";
+  renderCanvas();
+  if(window.innerWidth<=700)switchTab("canvas");
+}
+
+// ── Expand / collapse ──────────────────────────────────────────
+function toggleExp(key,btn){
+  const card=document.getElementById("card-"+key);
+  const exp=document.getElementById("exp-"+key);
+  if(!card||!exp)return;
+  const opening=!card.classList.contains("expanded");
+  card.classList.toggle("expanded",opening);
+  exp.style.display=opening?"block":"none";
+  const arrow=btn.querySelector(".exp-arrow");
+  if(arrow)arrow.style.transform=opening?"rotate(180deg)":"";
+  const lbl=btn.querySelector(".exp-label");
+  if(lbl)lbl.textContent=opening?"Collapse":"Details";
+}
+
+// ── Size ───────────────────────────────────────────────────────
+function setSize(sz){
+  document.getElementById("ccontent").dataset.size=sz;
+  document.querySelectorAll(".sz-btn").forEach(b=>b.classList.toggle("on",b.dataset.sz===sz));
+}
+
+// ── Refresh with 90s cooldown ──────────────────────────────────
+function doRefresh(key){
+  if(refreshing)return;
+  refreshing=key;
+  const rb=document.getElementById("rb-"+key);
+  if(rb){rb.innerHTML=`<span class="spin">↻</span>`;rb.disabled=true;}
+  setTimeout(()=>{
+    const ch=RC[key];
+    if(ch){imported=imported.map(i=>i.key===key?{...i,...ch}:i);diffs[key]={...(diffs[key]||{}),...ch};}
+    cooldowns[key]=Date.now()+90000;
+    synced[key]="just now";
+    refreshing=null;
+    renderCanvas();
+    let secs=0;
+    const iv=setInterval(()=>{
+      secs++;
+      const el=document.querySelector(`#card-${key} .sync-ts`);
+      if(!el){clearInterval(iv);return;}
+      el.textContent=`↻ Synced ${secs<60?secs+"s ago":Math.round(secs/60)+"m ago"}`;
+      if(secs>300)clearInterval(iv);
+    },1000);
+  },900);
+}
+
+// ══ FIELD CONFIG ══════════════════════════════════════════════
+function openCfg(){
+  document.getElementById("cfg-body").innerHTML=FIELDS.map(f=>{
+    const on=vis.has(f.k);
+    return `<div class="tog-row${on?" on":""}" onclick="toggleField(this,'${f.k}')">
+      <span class="tog-lbl">${f.label}</span>
+      <div class="tog-track${on?" on":""}"><div class="tog-thumb"></div></div>
+    </div>`;
+  }).join("");
+  document.getElementById("cfg-ov").classList.add("open");
+  document.getElementById("cfg-sh").style.display="block";
+}
+function toggleField(row,k){
+  vis.has(k)?vis.delete(k):vis.add(k);
+  const on=vis.has(k);
+  row.classList.toggle("on",on);
+  const track=row.querySelector(".tog-track");
+  track.classList.toggle("on",on);
+}
+function closeCfg(){document.getElementById("cfg-ov").classList.remove("open");document.getElementById("cfg-sh").style.display="none";}
+function applyCfg(){closeCfg();renderCanvas();}
+
+// ══ EDIT DRAWER ═══════════════════════════════════════════════
+// Mirrors EXACTLY the visible card fields — no more, no less
+function buildDrawer(issue){
+  const tc=TC[issue.type];
+  let h="";
+
+  // Title always shown
+  h+=`<div class="dfield"><div class="dlbl">TITLE / SUMMARY</div><textarea id="ef-title" class="dta" rows="3">${issue.title}</textarea></div>`;
+
+  if(fv("assignee"))
+    h+=`<div class="dfield"><div class="dlbl">ASSIGNEE</div><select id="ef-assignee" class="dsel">${ASSIGNEES.map(a=>`<option${a===issue.assignee?" selected":""}>${a}</option>`).join("")}</select></div>`;
+
+  if(fv("points"))
+    h+=`<div class="dfield"><div class="dlbl">STORY POINTS</div><div class="pts-wrap">
+      <input id="ef-points" class="pts-inp" type="number" min="0" step="1" placeholder="—" value="${issue.points!==null?issue.points:""}">
+      <div class="pts-hint">Any whole number<br>Leave blank = N/A</div>
+      <button class="pts-clr" onclick="document.getElementById('ef-points').value=''">✕ Clear</button>
+    </div></div>`;
+
+  if(fv("priority")||fv("status")){
+    const cols=fv("priority")&&fv("status")?"1fr 1fr":"1fr";
+    h+=`<div class="dgrid" style="grid-template-columns:${cols}">`;
+    if(fv("priority"))h+=`<div class="dfield"><div class="dlbl">PRIORITY</div><select id="ef-priority" class="dsel">${["Critical","High","Medium","Low"].map(p=>`<option${p===issue.priority?" selected":""}>${p}</option>`).join("")}</select></div>`;
+    if(fv("status"))  h+=`<div class="dfield"><div class="dlbl">STATUS</div><select id="ef-status" class="dsel">${["To Do","In Progress","Done"].map(s=>`<option${s===issue.status?" selected":""}>${s}</option>`).join("")}</select></div>`;
+    h+=`</div>`;
+  }
+
+  if(fv("sprint"))
+    h+=`<div class="dfield"><div class="dlbl">SPRINT / ITERATION</div><input id="ef-sprint" class="dinp" type="text" value="${issue.sprint||""}"></div>`;
+
+  if(fv("epicLink"))
+    h+=`<div class="dfield"><div class="dlbl">EPIC LINK</div><input id="ef-epicLink" class="dinp" type="text" placeholder="e.g. CRT-88" value="${issue.epicLink||""}"></div>`;
+
+  if(fv("components"))
+    h+=`<div class="dfield"><div class="dlbl">COMPONENTS <span style="color:#4B5563;font-weight:400">(comma-separated)</span></div><input id="ef-components" class="dinp" type="text" value="${(issue.components||[]).join(", ")}"></div>`;
+
+  if(fv("fixVersion"))
+    h+=`<div class="dfield"><div class="dlbl">FIX VERSION</div><input id="ef-fixVersion" class="dinp" type="text" value="${issue.fixVersion||""}"></div>`;
+
+  if(fv("reporter"))
+    h+=`<div class="dfield"><div class="dlbl">REPORTER</div><select id="ef-reporter" class="dsel">${ASSIGNEES.map(a=>`<option${a===issue.reporter?" selected":""}>${a}</option>`).join("")}</select></div>`;
+
+  if(fv("labels"))
+    h+=`<div class="dfield"><div class="dlbl">LABELS <span style="color:#4B5563;font-weight:400">(comma-separated)</span></div><input id="ef-labels" class="dinp" type="text" value="${(issue.labels||[]).join(", ")}"></div>`;
+
+  document.getElementById("dbody").innerHTML=h;
+}
+
+function openDrawer(key){
+  const issue=imported.find(i=>i.key===key);if(!issue)return;
+  editKey=key;
+  const tc=TC[issue.type];
+  document.getElementById("d-icon").textContent=tc.icon+" ";
+  document.getElementById("d-type").textContent=issue.type;
+  const dk=document.getElementById("d-key");
+  dk.textContent=issue.key+" ↗";dk.href=`https://intact.atlassian.net/browse/${key}`;
+  buildDrawer(issue);
+  document.getElementById("drw-ov").classList.add("open");
+  document.getElementById("drw-sh").style.display="block";
+}
+function closeDrawer(){
+  document.getElementById("drw-ov").classList.remove("open");
+  document.getElementById("drw-sh").style.display="none";
+  editKey=null;
+}
+function gf(id,fb){const el=document.getElementById(id);return el?el.value:fb;}
+function saveEdit(){
+  if(!editKey)return;
+  const orig=imported.find(i=>i.key===editKey);
+  const ptsRaw=gf("ef-points","").trim();
+  const updates={
+    title:      gf("ef-title",orig.title),
+    assignee:   gf("ef-assignee",orig.assignee),
+    points:     ptsRaw===""?null:parseInt(ptsRaw,10),
+    priority:   gf("ef-priority",orig.priority),
+    status:     gf("ef-status",orig.status),
+    sprint:     gf("ef-sprint",orig.sprint),
+    epicLink:   gf("ef-epicLink",orig.epicLink)||null,
+    components: gf("ef-components","").split(",").map(s=>s.trim()).filter(Boolean)||orig.components,
+    fixVersion: gf("ef-fixVersion",orig.fixVersion),
+    reporter:   gf("ef-reporter",orig.reporter),
+    labels:     gf("ef-labels","").split(",").map(s=>s.trim()).filter(Boolean)||orig.labels,
+  };
+  const changed={};
+  Object.keys(updates).forEach(k=>{if(JSON.stringify(orig[k])!==JSON.stringify(updates[k]))changed[k]=updates[k];});
+  imported=imported.map(i=>i.key===editKey?{...i,...updates}:i);
+  if(Object.keys(changed).length)diffs[editKey]={...(diffs[editKey]||{}),...changed};
+  const saved=editKey;closeDrawer();renderCanvas();
+  setTimeout(()=>{const c=document.getElementById("card-"+saved);if(c){c.style.outline="2px solid #4ADE80";setTimeout(()=>c.style.outline="",1400);}},80);
+}
+
+// ══ MOBILE TABS ═══════════════════════════════════════════════
+function switchTab(t){
+  document.getElementById("tb-p").classList.toggle("on",t==="panel");
+  document.getElementById("tb-c").classList.toggle("on",t==="canvas");
+  document.getElementById("app").classList.toggle("mc",t==="canvas");
+}
+</script>
+</body>
+</html>
