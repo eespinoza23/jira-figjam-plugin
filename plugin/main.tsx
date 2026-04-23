@@ -58,9 +58,14 @@ const App: React.FC = () => {
         credentials: 'include',
       });
       if (response.ok) {
-        setState(prev => ({ ...prev, authenticated: true }));
-      } else if (response.status === 401) {
-        setState(prev => ({ ...prev, authenticated: false }));
+        setState(prev => ({ ...prev, authenticated: true, error: null }));
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setState(prev => ({
+          ...prev,
+          authenticated: false,
+          error: response.status === 500 ? `Auth check failed: ${data.error || 'server error'}` : null,
+        }));
       }
     } catch (error) {
       console.error('Auth check failed:', error);

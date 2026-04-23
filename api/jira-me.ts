@@ -18,8 +18,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
     res.json({ authenticated: true, user: response.data });
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      return res.status(401).json({ error: 'Token expired — re-auth needed' });
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 401 || status === 403) {
+        return res.status(401).json({ error: 'Token invalid or insufficient scope — re-auth needed' });
+      }
     }
     const detail = axios.isAxiosError(error) ? error.response?.data : String(error);
     res.status(500).json({ error: 'Atlassian API call failed', detail });
