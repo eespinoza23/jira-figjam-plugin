@@ -1,4 +1,5 @@
 import { SearchResponse, JiraIssue } from './types';
+import { mapJiraIssue, JiraAPIIssue } from './mapper';
 
 const API_BASE = '/api';
 
@@ -36,9 +37,9 @@ export async function updateIssueInJira(
 }
 
 export async function syncIssueFromJira(issueKey: string): Promise<JiraIssue> {
-  const result = await apiCall<JiraIssue[]>('/jira-search', 'POST', { jql: `key = ${issueKey}` });
+  const result = await apiCall<JiraAPIIssue[]>('/jira-search', 'POST', { jql: `key = ${issueKey}` });
   if (!result || result.length === 0) throw new Error(`Issue ${issueKey} not found`);
-  return result[0];
+  return mapJiraIssue(result[0]);
 }
 
 export async function fetchJiraFields() {
