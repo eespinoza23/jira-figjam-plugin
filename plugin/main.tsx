@@ -138,6 +138,8 @@ function Card({
 }
 
 // ── Drawer component ───────────────────────────────────────────
+interface JiraUser { accountId: string; displayName: string; avatarUrls?: Record<string, string> }
+
 function Drawer({
   issue, jiraInstance, visFields, onClose, onSave,
 }: {
@@ -150,7 +152,16 @@ function Drawer({
   const [changes, setChanges] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<JiraUser[]>([]);
   const ptsRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!issue) return;
+    fetch(`/api/jira-users?issueKey=${issue.key}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: JiraUser[]) => setUsers(Array.isArray(data) ? data : []))
+      .catch(() => setUsers([]));
+  }, [issue?.key]);
 
   useEffect(() => { setChanges({}); setError(null); }, [issue?.key]);
 
@@ -242,8 +253,20 @@ function Drawer({
           )}
           {visFields.has('assignee') && (
             <div className="dfield">
-              <div className="dlbl">ASSIGNEE <span style={{ fontWeight: 400, opacity: .7 }}>(display name)</span></div>
-              <input className="dinp" value={cv('assignee') as string} onChange={e => set('assignee', e.target.value)} />
+              <div className="dlbl">ASSIGNEE</div>
+              {users.length > 0 ? (
+                <select className="dsel"
+                  value={(changes.assigneeAccountId as string) ?? users.find(u => u.displayName === issue.assignee)?.accountId ?? ''}
+                  onChange={e => {
+                    const u = users.find(u => u.accountId === e.target.value);
+                    if (u) { set('assigneeAccountId', u.accountId); set('assignee', u.displayName); }
+                  }}>
+                  <option value="">— Unassigned —</option>
+                  {users.map(u => <option key={u.accountId} value={u.accountId}>{u.displayName}</option>)}
+                </select>
+              ) : (
+                <input className="dinp" value={cv('assignee') as string} onChange={e => set('assignee', e.target.value)} placeholder="Loading users…" readOnly={users.length === 0} />
+              )}
             </div>
           )}
         </div>
@@ -433,13 +456,16 @@ const App: React.FC = () => {
                   <div className="lbl">FILTER TYPE</div>
                   <div id="type-filter">
                     {['All', ...Array.from(new Set(issues.map(i => i.type)))].map(t => {
-                      const tc = TC[t];
+                      const tc = TC[t as keyof typeof TC];
                       const active = filter === t;
+                      const iconUrl = t !== 'All' ? issues.find(i => i.type === t)?.typeIconUrl : undefined;
                       return (
                         <button key={t} className="tf-btn"
                           style={active ? { background: (tc?.color ?? '#2563EB') + '22', borderColor: tc?.color ?? '#2563EB', color: tc?.color ?? '#60A5FA' } : {}}
                           onClick={() => setFilter(t)}>
-                          {tc ? `${tc.icon} ${t}` : t}
+                          {iconUrl
+                            ? <><img src={iconUrl} width={10} height={10} alt={t} style={{ verticalAlign: 'middle', marginRight: 3 }} />{t}</>
+                            : tc ? <>{tc.icon} {t}</> : t}
                         </button>
                       );
                     })}
@@ -539,7 +565,12 @@ const App: React.FC = () => {
                 <div key={g.type} className="grp">
                   <div className="grp-head">
                     <div style={{ height: 1, width: 12, background: tc.color + '88' }} />
-                    <div className="grp-title" style={{ color: tc.color }}>{tc.icon} {g.type.toUpperCase()}S</div>
+                    <div className="grp-title" style={{ color: tc.color }}>
+                      {g.items[0]?.typeIconUrl
+                        ? <img src={g.items[0].typeIconUrl} width={12} height={12} alt={g.type} style={{ verticalAlign: 'middle' }} />
+                        : tc.icon}
+                      {' '}{g.type.toUpperCase()}S
+                    </div>
                     <div className="grp-count" style={{ background: tc.color + '18', border: `1px solid ${tc.color}44`, color: tc.color }}>{g.items.length}</div>
                     <div style={{ flex: 1, height: 1, background: tc.color + '22' }} />
                   </div>

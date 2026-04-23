@@ -36,6 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fields.customfield_10016 = updates.points;
     }
     if (updates.priority) fields.priority = { name: updates.priority };
+    if (updates.assigneeAccountId) fields.assignee = { accountId: updates.assigneeAccountId };
     if (updates.fixVersion !== undefined) {
       fields.fixVersions = updates.fixVersion ? [{ name: updates.fixVersion }] : [];
     }
