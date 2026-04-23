@@ -80,7 +80,7 @@ function Card({
             {' '}{issue.type.toUpperCase()}
           </div>
           <div className="c-acts">
-            <a className="c-link" href={`https://${jiraInstance}/browse/${issue.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{issue.key} ↗</a>
+            <a className="c-link" href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{issue.key} ↗</a>
             <button className="c-sync" disabled={syncing} title={syncing ? 'Syncing…' : 'Sync from Jira'}
               onClick={e => { e.stopPropagation(); onSync(issue.key); }}>
               {syncing ? <span className="spin">↻</span> : '↻'}
@@ -179,7 +179,7 @@ function Drawer({
         <div className="bheader">
           <div className="btitle">
             <span>{tc.icon} {issue.type}</span>
-            <a className="dklink" href={`https://${jiraInstance}/browse/${issue.key}`} target="_blank" rel="noreferrer">{issue.key} ↗</a>
+            <a className="dklink" href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`} target="_blank" rel="noreferrer">{issue.key} ↗</a>
           </div>
           <button className="xbtn" onClick={onClose}>✕</button>
         </div>
