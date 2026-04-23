@@ -21,14 +21,27 @@ const App: React.FC = () => {
     jiraInstance: 'intact.atlassian.net',
   });
   const [editingIssue, setEditingIssue] = useState<JiraIssue | null>(null);
+  const [instanceInput, setInstanceInput] = useState<string>('intact.atlassian.net');
 
   useEffect(() => {
     checkAuth();
     setupFigJamListeners();
   }, []);
 
+  const validateInstance = (instance: string): boolean => {
+    // Only allow valid Atlassian Cloud instances: subdomain.atlassian.net
+    return /^[a-z0-9-]+\.atlassian\.net$/.test(instance.toLowerCase());
+  };
+
   const handleConnect = () => {
-    window.location.href = '/api/jira-auth';
+    if (!validateInstance(instanceInput)) {
+      setState(prev => ({ ...prev, error: 'Invalid Jira instance. Use format: myinstance.atlassian.net' }));
+      return;
+    }
+    const cleanInstance = instanceInput.toLowerCase();
+    sessionStorage.setItem('jira_instance', cleanInstance);
+    setState(prev => ({ ...prev, jiraInstance: cleanInstance }));
+    window.location.href = `/api/jira-auth?instance=${encodeURIComponent(cleanInstance)}`;
   };
 
   const checkAuth = async () => {
@@ -220,21 +233,41 @@ const App: React.FC = () => {
         <p style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>for FigJam</p>
 
         {!state.authenticated ? (
-          <button
-            onClick={handleConnect}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: '#2563EB',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '600',
-            }}
-          >
-            Connect Jira
-          </button>
+          <>
+            <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', display: 'block', marginBottom: '8px' }}>
+              JIRA INSTANCE URL
+            </label>
+            <input
+              type="text"
+              placeholder="e.g., intact.atlassian.net"
+              value={instanceInput}
+              onChange={e => setInstanceInput(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                marginBottom: '12px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontFamily: 'monospace',
+                fontSize: '11px',
+              }}
+            />
+            <button
+              onClick={handleConnect}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#2563EB',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600',
+              }}
+            >
+              Connect Jira
+            </button>
+          </>
         ) : (
           <>
             <div style={{ fontSize: '12px', color: '#4ADE80', marginBottom: '12px', padding: '8px', background: '#0F2A1A', borderRadius: '4px' }}>

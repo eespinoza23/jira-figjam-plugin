@@ -1,6 +1,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 
+const validateInstance = (instance: string): boolean => {
+  return /^[a-z0-9-]+\.atlassian\.net$/.test(instance.toLowerCase());
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -8,6 +12,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { jql } = req.body;
   const accessToken = req.cookies.access_token;
+  const rawInstance = req.cookies.jira_instance || process.env.JIRA_INSTANCE_URL;
 
   if (!accessToken) {
     return res.status(401).json({ error: 'Not authenticated — call /api/jira-auth first' });
@@ -17,8 +22,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'JQL query required' });
   }
 
+  if (!validateInstance(rawInstance)) {
+    console.error('Invalid Jira instance in cookie:', rawInstance);
+    return res.status(400).json({ error: 'Invalid Jira instance configuration' });
+  }
+
+  const instanceUrl = rawInstance.toLowerCase();
+
   try {
-    const response = await axios.get(`${process.env.JIRA_INSTANCE_URL}/rest/api/3/search`, {
+    const response = await axios.get(`https://${instanceUrl}/rest/api/3/search`, {
       params: { jql, expand: 'changelog', maxResults: 100 },
       headers: { Authorization: `Bearer ${accessToken}` },
     });
