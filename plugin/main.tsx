@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { AppState, JiraIssue } from './types';
-import { searchJira, updateIssueInJira } from './api';
-import { getToken, setToken, clearToken } from './auth';
 import './styles.css';
 
 const App: React.FC = () => {
@@ -19,25 +17,54 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    const token = getToken();
-    if (token) {
-      setState(prev => ({ ...prev, authenticated: true, token }));
-    }
+    checkAuth();
   }, []);
 
   const handleConnect = () => {
-    const callbackUrl = `${window.location.origin}/callback`;
-    window.location.href = `/api/jira-auth?redirect=${encodeURIComponent(callbackUrl)}`;
+    window.location.href = '/api/jira-auth';
+  };
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/jira-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jql: 'project = CRT AND maxResults=0' }),
+        credentials: 'include',
+      });
+      if (response.ok) {
+        setState(prev => ({ ...prev, authenticated: true }));
+      } else if (response.status === 401) {
+        setState(prev => ({ ...prev, authenticated: false }));
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+    }
   };
 
   const handleJQLSearch = async () => {
     const jqlInput = document.querySelector('#jql') as HTMLTextAreaElement;
-    if (!jqlInput || !state.token) return;
+    if (!jqlInput) return;
 
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const response = await searchJira(jqlInput.value, state.token);
-      setState(prev => ({ ...prev, issues: response.issues, loading: false }));
+      const response = await fetch('/api/jira-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jql: jqlInput.value }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setState(prev => ({ ...prev, authenticated: false, error: 'Not authenticated' }));
+          return;
+        }
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+
+      const issues = await response.json();
+      setState(prev => ({ ...prev, issues, loading: false }));
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -60,10 +87,18 @@ const App: React.FC = () => {
   };
 
   const handleSaveEdit = async (issueKey: string, changes: Record<string, unknown>) => {
-    if (!state.token) return;
-
     try {
-      await updateIssueInJira(issueKey, changes, state.token);
+      const response = await fetch('/api/jira-update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issueKey, updates: changes }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update issue');
+      }
+
       setState(prev => ({
         ...prev,
         imported: prev.imported.map(i =>
@@ -82,7 +117,6 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    clearToken();
     setState({
       authenticated: false,
       token: null,
@@ -122,7 +156,7 @@ const App: React.FC = () => {
         ) : (
           <>
             <div style={{ fontSize: '12px', color: '#4ADE80', marginBottom: '12px', padding: '8px', background: '#0F2A1A', borderRadius: '4px' }}>
-              ✓ {state.jiraInstance}
+              ✓ {state.jiraInstance} - Connected
             </div>
             <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em' }}>JQL QUERY</label>
             <textarea

@@ -1,66 +1,43 @@
-import axios, { AxiosError } from 'axios';
 import { SearchResponse, JiraIssue } from './types';
 
 const API_BASE = '/api';
 
-export async function searchJira(jql: string, token: string): Promise<SearchResponse> {
-  try {
-    const response = await axios.post<JiraIssue[]>(`${API_BASE}/jira-search`, { jql }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return { issues: response.data, total: response.data.length };
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.error || 'JQL search failed');
-    }
-    throw error;
+async function apiCall<T>(
+  url: string,
+  method: 'GET' | 'POST' | 'PUT' = 'POST',
+  body?: unknown
+): Promise<T> {
+  const response = await fetch(`${API_BASE}${url}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || `API Error: ${response.statusText}`);
   }
+
+  return response.json();
+}
+
+export async function searchJira(jql: string): Promise<SearchResponse> {
+  const issues = await apiCall<JiraIssue[]>('/jira-search', 'POST', { jql });
+  return { issues, total: issues.length };
 }
 
 export async function updateIssueInJira(
   issueKey: string,
-  changes: Record<string, unknown>,
-  token: string
+  changes: Record<string, unknown>
 ): Promise<void> {
-  try {
-    await axios.put(`${API_BASE}/jira-update`, { issueKey, updates: changes }, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.error || 'Failed to update issue');
-    }
-    throw error;
-  }
+  await apiCall('/jira-update', 'PUT', { issueKey, updates: changes });
 }
 
-export async function syncIssueFromJira(
-  issueKey: string,
-  token: string
-): Promise<JiraIssue> {
-  try {
-    const response = await axios.get<JiraIssue>(`${API_BASE}/jira-search?key=${issueKey}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.error || 'Failed to sync issue');
-    }
-    throw error;
-  }
+export async function syncIssueFromJira(issueKey: string): Promise<JiraIssue> {
+  return apiCall<JiraIssue>(`/jira-search?key=${issueKey}`, 'GET');
 }
 
-export async function fetchJiraFields(token: string) {
-  try {
-    const response = await axios.get(`${API_BASE}/jira-fields`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.error || 'Failed to fetch fields');
-    }
-    throw error;
-  }
+export async function fetchJiraFields() {
+  return apiCall('/jira-fields', 'GET');
 }
