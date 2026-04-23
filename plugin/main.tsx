@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { AppState, JiraIssue } from './types';
 import { mapJiraIssue, JiraAPIIssue } from './mapper';
-import { syncIssueFromJira } from './api';
+import { syncIssueFromJira, updateIssueInJira } from './api';
 import { Card } from './components/Card';
+import { Drawer } from './components/Drawer';
 import './styles.css';
 
 const App: React.FC = () => {
@@ -18,6 +19,7 @@ const App: React.FC = () => {
     error: null,
     jiraInstance: 'intact.atlassian.net',
   });
+  const [editingIssue, setEditingIssue] = useState<JiraIssue | null>(null);
 
   useEffect(() => {
     checkAuth();
@@ -175,12 +177,33 @@ const App: React.FC = () => {
   };
 
   const handleEdit = (issue: JiraIssue) => {
-    // Placeholder for Step 5: Edit Drawer + Update Sync
-    console.log('Edit issue:', issue.key);
+    setEditingIssue(issue);
+  };
+
+  const handleSaveEdit = async (issueKey: string, changes: Record<string, unknown>) => {
+    try {
+      const updatedIssue = await updateIssueInJira(issueKey, changes);
+
+      setState(prev => ({
+        ...prev,
+        imported: prev.imported.map(i =>
+          i.key === issueKey
+            ? { ...updatedIssue, lastSynced: new Date().toISOString() }
+            : i
+        ),
+        diffs: { ...prev.diffs, [issueKey]: {} },
+      }));
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Update failed',
+      }));
+      throw error;
+    }
   };
 
   return (
-    <div id="app" style={{ display: 'flex', height: '100vh' }}>
+    <div id="app" style={{ display: 'flex', height: '100vh', position: 'relative' }}>
       {/* Left Panel */}
       <div style={{ width: '320px', borderRight: '1px solid #ccc', padding: '16px', overflowY: 'auto' }}>
         <h2>🔌 Jira Multi-Import</h2>
@@ -344,6 +367,12 @@ const App: React.FC = () => {
           </div>
         )}
       </div>
+
+      <Drawer
+        issue={editingIssue}
+        onClose={() => setEditingIssue(null)}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 };

@@ -30,8 +30,9 @@ export async function searchJira(jql: string): Promise<SearchResponse> {
 export async function updateIssueInJira(
   issueKey: string,
   changes: Record<string, unknown>
-): Promise<void> {
+): Promise<JiraIssue> {
   await apiCall('/jira-update', 'PUT', { issueKey, updates: changes });
+  return syncIssueFromJira(issueKey);
 }
 
 export async function syncIssueFromJira(issueKey: string): Promise<JiraIssue> {
