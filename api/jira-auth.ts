@@ -13,25 +13,24 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const clientId = process.env.ATLASSIAN_CLIENT_ID;
   const instanceParam = req.query.instance as string;
 
-  // Validate instance parameter if provided
   if (instanceParam && !validateInstance(instanceParam)) {
     return res.status(400).json({ error: 'Invalid Jira instance URL' });
   }
 
   const cleanInstance = instanceParam ? instanceParam.toLowerCase() : process.env.JIRA_INSTANCE_URL;
-  const baseUrl = `https://${cleanInstance}`;
-  const vercelUrl = process.env.VERCEL_URL;
-  const redirectUri = `https://${vercelUrl}/api/jira-callback`;
-  const scope = 'read:jira-work write:jira-work offline_access';
+  // APP_URL is stable; VERCEL_PROJECT_PRODUCTION_URL is set by Vercel for prod; VERCEL_URL is per-deployment
+  const appUrl = process.env.APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const redirectUri = `https://${appUrl}/api/jira-callback`;
+  const scope = 'read:me read:jira-work write:jira-work offline_access';
   const state = randomBytes(16).toString('hex');
 
-  // Store both state and instance in HttpOnly cookies
   res.setHeader('Set-Cookie', [
     `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
     `jira_instance=${cleanInstance}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
   ]);
 
-  const authUrl = `${baseUrl}/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&state=${state}`;
+  // Atlassian OAuth 2.0 (3LO) uses auth.atlassian.com, NOT the instance URL
+  const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${clientId}&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=code&prompt=consent`;
 
   res.redirect(authUrl);
 }

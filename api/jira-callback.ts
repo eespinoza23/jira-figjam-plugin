@@ -31,12 +31,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const tokenResponse = await axios.post(`https://${instanceUrl}/oauth/token`, {
+    // Atlassian token endpoint is always auth.atlassian.com regardless of instance
+    const appUrl = process.env.APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+    const tokenResponse = await axios.post('https://auth.atlassian.com/oauth/token', {
       grant_type: 'authorization_code',
       client_id: process.env.ATLASSIAN_CLIENT_ID,
       client_secret: process.env.ATLASSIAN_CLIENT_SECRET,
       code,
-      redirect_uri: `https://${process.env.VERCEL_URL}/api/jira-callback`,
+      redirect_uri: `https://${appUrl}/api/jira-callback`,
     });
 
     const accessToken = tokenResponse.data.access_token;
@@ -47,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `refresh_token=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`,
     ]);
 
-    res.redirect('/plugin');
+    res.redirect('/');
   } catch (error) {
     console.error('OAuth token exchange failed:', error);
     res.status(500).json({ error: 'Failed to exchange code for token' });

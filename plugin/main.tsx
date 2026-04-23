@@ -21,24 +21,31 @@ const App: React.FC = () => {
     jiraInstance: 'intact.atlassian.net',
   });
   const [editingIssue, setEditingIssue] = useState<JiraIssue | null>(null);
-  const [instanceInput, setInstanceInput] = useState<string>('intact.atlassian.net');
+  const [instanceInput, setInstanceInput] = useState<string>('');
 
   useEffect(() => {
     checkAuth();
     setupFigJamListeners();
   }, []);
 
+  const normalizeInstance = (instance: string): string => {
+    return instance
+      .toLowerCase()
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, '')
+      .trim();
+  };
+
   const validateInstance = (instance: string): boolean => {
-    // Only allow valid Atlassian Cloud instances: subdomain.atlassian.net
-    return /^[a-z0-9-]+\.atlassian\.net$/.test(instance.toLowerCase());
+    return /^[a-z0-9-]+\.atlassian\.net$/.test(instance);
   };
 
   const handleConnect = () => {
-    if (!validateInstance(instanceInput)) {
+    const cleanInstance = normalizeInstance(instanceInput);
+    if (!validateInstance(cleanInstance)) {
       setState(prev => ({ ...prev, error: 'Invalid Jira instance. Use format: myinstance.atlassian.net' }));
       return;
     }
-    const cleanInstance = instanceInput.toLowerCase();
     sessionStorage.setItem('jira_instance', cleanInstance);
     setState(prev => ({ ...prev, jiraInstance: cleanInstance }));
     window.location.href = `/api/jira-auth?instance=${encodeURIComponent(cleanInstance)}`;
@@ -46,10 +53,8 @@ const App: React.FC = () => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/jira-search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql: 'project = CRT AND maxResults=0' }),
+      const response = await fetch('/api/jira-me', {
+        method: 'GET',
         credentials: 'include',
       });
       if (response.ok) {
@@ -117,36 +122,6 @@ const App: React.FC = () => {
       imported: selected,
       selected: new Set(),
     }));
-  };
-
-  const handleSaveEdit = async (issueKey: string, changes: Record<string, unknown>) => {
-    try {
-      const response = await fetch('/api/jira-update', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ issueKey, updates: changes }),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update issue');
-      }
-
-      setState(prev => ({
-        ...prev,
-        imported: prev.imported.map(i =>
-          i.key === issueKey
-            ? { ...i, ...changes, lastSynced: new Date().toISOString() }
-            : i
-        ),
-        diffs: { ...prev.diffs, [issueKey]: {} },
-      }));
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Update failed',
-      }));
-    }
   };
 
   const handleLogout = () => {
@@ -239,7 +214,7 @@ const App: React.FC = () => {
             </label>
             <input
               type="text"
-              placeholder="e.g., intact.atlassian.net"
+              placeholder="e.g., mycompany.atlassian.net"
               value={instanceInput}
               onChange={e => setInstanceInput(e.target.value)}
               style={{
