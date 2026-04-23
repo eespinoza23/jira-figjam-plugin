@@ -114,7 +114,7 @@ npm run preview      # Preview built plugin
 
 Changes hot-reload automatically in dev mode.
 
-## Testing
+## Testing 
 
 Comprehensive QA tests in [QA_TESTS.md](./QA_TESTS.md):
 - OAuth flow validation
