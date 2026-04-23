@@ -36,7 +36,9 @@ export async function updateIssueInJira(
 }
 
 export async function syncIssueFromJira(issueKey: string): Promise<JiraIssue> {
-  return apiCall<JiraIssue>(`/jira-search?key=${issueKey}`, 'GET');
+  const result = await apiCall<JiraIssue[]>('/jira-search', 'POST', { jql: `key = ${issueKey}` });
+  if (!result || result.length === 0) throw new Error(`Issue ${issueKey} not found`);
+  return result[0];
 }
 
 export async function fetchJiraFields() {

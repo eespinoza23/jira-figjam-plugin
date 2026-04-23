@@ -20,22 +20,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const cloudId = req.cookies.cloud_id || await getCloudId(accessToken);
+    const base = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`;
+    const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
 
-    const allowedFields = ['summary', 'priority', 'assignee', 'status', 'customfield_10000'];
-    const fieldsToUpdate: Record<string, unknown> = {};
-    Object.entries(updates).forEach(([key, value]) => {
-      if (allowedFields.includes(key)) fieldsToUpdate[key] = value;
-    });
+    const fields: Record<string, unknown> = {};
 
-    if (Object.keys(fieldsToUpdate).length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
+    if (updates.title) fields.summary = updates.title;
+    if (updates.points !== undefined) fields.customfield_10000 = updates.points;
+    if (updates.priority) fields.priority = { name: updates.priority };
+    if (updates.assignee) fields.assignee = { displayName: updates.assignee };
+
+    if (Object.keys(fields).length > 0) {
+      await axios.put(base, { fields }, { headers });
     }
 
-    await axios.put(
-      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
-      { fields: fieldsToUpdate },
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+    // Status requires a transition
+    if (updates.status) {
+      const transitionsRes = await axios.get(`${base}/transitions`, { headers });
+      const transitions: { id: string; name: string; to: { name: string } }[] = transitionsRes.data.transitions;
+
+      const statusMap: Record<string, string[]> = {
+        'To Do': ['to do', 'open', 'backlog'],
+        'In Progress': ['in progress', 'in development', 'started'],
+        'Done': ['done', 'closed', 'resolved', 'complete'],
+      };
+
+      const targetStatus = updates.status as string;
+      const keywords = statusMap[targetStatus] || [targetStatus.toLowerCase()];
+      const match = transitions.find(t =>
+        keywords.some(k => t.to.name.toLowerCase().includes(k) || t.name.toLowerCase().includes(k))
+      );
+
+      if (match) {
+        await axios.post(`${base}/transitions`, { transition: { id: match.id } }, { headers });
+      }
+    }
 
     res.setHeader('Set-Cookie', `cloud_id=${cloudId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`);
     res.json({ success: true, issueKey });
