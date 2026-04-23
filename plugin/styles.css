@@ -31,6 +31,8 @@ html,body,#root{height:100%;overflow:hidden;font-family:'Sora',sans-serif;backgr
 #exec-btn:disabled{background:#E2E8F0;color:#94A3B8;cursor:not-allowed}
 #type-filter{display:flex;gap:5px;flex-wrap:wrap}
 .tf-btn{border-radius:5px;padding:3px 9px;cursor:pointer;font-size:9px;font-family:'Sora',sans-serif;font-weight:500;border:1px solid #E2E8F0;background:#F8FAFC;color:#64748B;transition:all .15s}
+.jql-preset{border-radius:20px;padding:2px 9px;cursor:pointer;font-size:9px;font-family:'IBM Plex Mono',monospace;font-weight:500;border:1px solid #BFDBFE;background:#EFF6FF;color:#2563EB;transition:all .15s;white-space:nowrap}
+.jql-preset:hover{background:#2563EB;color:#fff;border-color:#2563EB}
 #sel-bar{display:none;flex-shrink:0;align-items:stretch;background:#F1F5F9;border-top:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;margin-top:10px}
 .sel-l{display:flex;align-items:center;gap:8px;padding:9px 16px;flex:1;cursor:pointer;user-select:none;transition:background .15s}
 .sel-l:hover{background:#E8EEF7}

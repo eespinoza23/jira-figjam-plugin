@@ -475,7 +475,15 @@ const App: React.FC = () => {
             </div>
           </div>
           {authenticated ? (
-            <div className="conn"><div className="conn-dot" />{jiraInstance || 'Connected'} · OAuth ✓</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="conn"><div className="conn-dot" />{jiraInstance || 'Connected'}</div>
+              <button title="Disconnect" onClick={async () => {
+                await fetch('/api/jira-logout', { method: 'POST', credentials: 'include' });
+                setAuthenticated(false); setIssues([]); setImported([]); setSelected(new Set()); setJiraInstance('');
+              }} style={{ background: 'none', border: '1px solid #E2E8F0', borderRadius: 5, color: '#94A3B8', fontSize: 10, padding: '3px 7px', cursor: 'pointer', fontFamily: "'IBM Plex Mono',monospace" }}>
+                ⏏ Logout
+              </button>
+            </div>
           ) : (
             <div className="conn conn-err"><div className="conn-dot" />Not connected</div>
           )}
@@ -489,7 +497,7 @@ const App: React.FC = () => {
               <input type="text" placeholder="mycompany.atlassian.net" value={instanceInput}
                 onChange={e => setInstanceInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleConnect()}
-                style={{ width: '100%', background: '#0D1117', border: '1px solid #252830', borderRadius: 7, color: '#E2E8F0', fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: '9px 11px', outline: 'none' }}
+                style={{ width: '100%', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 7, color: '#1E293B', fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: '9px 11px', outline: 'none' }}
               />
               <button id="exec-btn" style={{ marginTop: 10 }} onClick={handleConnect}>Connect Jira</button>
             </div>
@@ -499,6 +507,21 @@ const App: React.FC = () => {
             <div className="sec">
               <div className="lbl">JQL QUERY</div>
               <textarea id="jql" rows={3} defaultValue="project = CRT AND sprint in openSprints()" />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                {[
+                  { label: 'My open issues',   jql: 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC' },
+                  { label: 'Active sprint',    jql: 'sprint in openSprints() ORDER BY priority DESC' },
+                  { label: 'Recent bugs',      jql: 'issuetype = Bug AND created >= -7d ORDER BY created DESC' },
+                  { label: 'Unassigned',       jql: 'assignee is EMPTY AND resolution = Unresolved ORDER BY priority DESC' },
+                  { label: 'High priority',    jql: 'priority in (Critical, High) AND resolution = Unresolved ORDER BY priority DESC' },
+                  { label: 'Done this week',   jql: 'status = Done AND updated >= -7d ORDER BY updated DESC' },
+                ].map(p => (
+                  <button key={p.label} className="jql-preset" onClick={() => {
+                    const el = document.getElementById('jql') as HTMLTextAreaElement;
+                    if (el) el.value = p.jql;
+                  }}>{p.label}</button>
+                ))}
+              </div>
               <button id="exec-btn" disabled={loading} onClick={handleJQLSearch}>
                 {loading ? <><span className="spin">⟳</span> Fetching…</> : '▶ Execute JQL'}
               </button>
