@@ -314,16 +314,20 @@ const App: React.FC = () => {
   };
 
   const handleImport = async (toImport: JiraIssue[]) => {
-    if (toImport.length === 0) return;
-    let yOffset = 0;
-    const { x: bx, y: by } = getSelectedIssuePosition();
-    for (const issue of toImport) { await addIssueToCanvas(issue, bx, by + yOffset); yOffset += 160; }
-    setImported(prev => {
-      const existing = new Set(prev.map(i => i.key));
-      return [...prev, ...toImport.filter(i => !existing.has(i.key))];
-    });
-    setSelected(new Set());
-    if (window.innerWidth <= 700) setMobileTab('canvas');
+    if (toImport.length === 0) { setError('No issues selected to import'); return; }
+    try {
+      let yOffset = 0;
+      const { x: bx, y: by } = getSelectedIssuePosition();
+      for (const issue of toImport) { await addIssueToCanvas(issue, bx, by + yOffset); yOffset += 160; }
+      setImported(prev => {
+        const existing = new Set(prev.map(i => i.key));
+        return [...prev, ...toImport.filter(i => !existing.has(i.key))];
+      });
+      setSelected(new Set());
+      if (window.innerWidth <= 700) setMobileTab('canvas');
+    } catch (e) {
+      setError(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   const handleSync = async (key: string) => {
