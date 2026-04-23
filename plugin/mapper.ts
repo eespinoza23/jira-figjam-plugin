@@ -4,6 +4,7 @@ export interface JiraAPIIssue {
   key: string;
   fields: {
     summary: string;
+    description?: unknown; // ADF document or null
     issuetype: { name: string; iconUrl?: string };
     priority: { name: string; iconUrl?: string } | null;
     assignee: { displayName: string } | null;
@@ -30,6 +31,7 @@ export function mapJiraIssue(jiraIssue: JiraAPIIssue): JiraIssue {
     type: mapIssuetype(fields.issuetype?.name || ''),
     priority: mapPriority(fields.priority?.name || 'Medium'),
     title: fields.summary || jiraIssue.key,
+    description: extractAdfText(fields.description),
     assignee: fields.assignee?.displayName || 'Unassigned',
     points: fields.customfield_10016 ?? fields.customfield_10028 ?? fields.customfield_10000 ?? fields.story_points ?? null,
     status: mapStatus(fields.status?.name || ''),
@@ -43,6 +45,15 @@ export function mapJiraIssue(jiraIssue: JiraAPIIssue): JiraIssue {
     typeIconUrl: fields.issuetype?.iconUrl,
     priorityIconUrl: fields.priority?.iconUrl,
   };
+}
+
+// Extract plain text from Atlassian Document Format (ADF)
+function extractAdfText(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  const n = node as { type?: string; text?: string; content?: unknown[] };
+  if (n.type === 'text') return n.text || '';
+  if (Array.isArray(n.content)) return n.content.map(extractAdfText).join('');
+  return '';
 }
 
 function mapIssuetype(type: string): 'Epic' | 'Feature' | 'Story' | 'Bug' {

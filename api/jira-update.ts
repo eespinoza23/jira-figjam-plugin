@@ -26,12 +26,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fields: Record<string, unknown> = {};
 
     if (updates.title) fields.summary = updates.title;
+    if (updates.description !== undefined) {
+      // Wrap plain text into ADF (Atlassian Document Format)
+      fields.description = updates.description
+        ? { version: 1, type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: String(updates.description) }] }] }
+        : { version: 1, type: 'doc', content: [] };
+    }
     if (updates.points !== undefined) {
-      // customfield_10016 = Story Points (Jira Cloud company-managed)
       fields.customfield_10016 = updates.points;
     }
     if (updates.priority) fields.priority = { name: updates.priority };
-    if (updates.assignee) fields.assignee = { displayName: updates.assignee };
+    if (updates.fixVersion !== undefined) {
+      fields.fixVersions = updates.fixVersion ? [{ name: updates.fixVersion }] : [];
+    }
+    if (updates.labels !== undefined) {
+      const raw = String(updates.labels);
+      fields.labels = raw ? raw.split(',').map((l: string) => l.trim()).filter(Boolean) : [];
+    }
 
     if (Object.keys(fields).length > 0) {
       try {

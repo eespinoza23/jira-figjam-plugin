@@ -178,7 +178,10 @@ function Drawer({
         <div className="bhandle" />
         <div className="bheader">
           <div className="btitle">
-            <span>{tc.icon} {issue.type}</span>
+            {issue.typeIconUrl
+              ? <img src={issue.typeIconUrl} width={16} height={16} alt={issue.type} style={{ verticalAlign: 'middle' }} />
+              : <span>{tc.icon}</span>}
+            <span style={{ color: tc.color }}>{issue.type}</span>
             <a className="dklink" href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`} target="_blank" rel="noreferrer">{issue.key} ↗</a>
           </div>
           <button className="xbtn" onClick={onClose}>✕</button>
@@ -186,14 +189,13 @@ function Drawer({
         <div className="dbody">
           <div className="dfield">
             <div className="dlbl">TITLE / SUMMARY</div>
-            <textarea className="dta" rows={3} value={cv('title') as string} onChange={e => set('title', e.target.value)} />
+            <textarea className="dta" rows={2} value={cv('title') as string} onChange={e => set('title', e.target.value)} />
           </div>
-          {visFields.has('assignee') && (
-            <div className="dfield">
-              <div className="dlbl">ASSIGNEE</div>
-              <input className="dinp" value={cv('assignee') as string} onChange={e => set('assignee', e.target.value)} />
-            </div>
-          )}
+          <div className="dfield">
+            <div className="dlbl">DESCRIPTION</div>
+            <textarea className="dta" rows={4} placeholder="Add a description…"
+              value={(cv('description') as string) ?? ''} onChange={e => set('description', e.target.value)} />
+          </div>
           {visFields.has('points') && (
             <div className="dfield">
               <div className="dlbl">STORY POINTS</div>
@@ -205,24 +207,43 @@ function Drawer({
               </div>
             </div>
           )}
-          {(visFields.has('priority') || visFields.has('status')) && (
-            <div className="dgrid" style={{ gridTemplateColumns: visFields.has('priority') && visFields.has('status') ? '1fr 1fr' : '1fr' }}>
-              {visFields.has('priority') && (
-                <div className="dfield">
-                  <div className="dlbl">PRIORITY</div>
-                  <select className="dsel" value={cv('priority') as string} onChange={e => set('priority', e.target.value)}>
-                    {['Critical', 'High', 'Medium', 'Low'].map(p => <option key={p}>{p}</option>)}
-                  </select>
-                </div>
-              )}
-              {visFields.has('status') && (
-                <div className="dfield">
-                  <div className="dlbl">STATUS</div>
-                  <select className="dsel" value={cv('status') as string} onChange={e => set('status', e.target.value)}>
-                    {['To Do', 'In Progress', 'Done'].map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-              )}
+          <div className="dgrid">
+            {visFields.has('priority') && (
+              <div className="dfield">
+                <div className="dlbl">PRIORITY</div>
+                <select className="dsel" value={cv('priority') as string} onChange={e => set('priority', e.target.value)}>
+                  {['Critical', 'High', 'Medium', 'Low'].map(p => <option key={p}>{p}</option>)}
+                </select>
+              </div>
+            )}
+            {visFields.has('status') && (
+              <div className="dfield">
+                <div className="dlbl">STATUS</div>
+                <select className="dsel" value={cv('status') as string} onChange={e => set('status', e.target.value)}>
+                  {['To Do', 'In Progress', 'Done'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          {visFields.has('labels') && (
+            <div className="dfield">
+              <div className="dlbl">LABELS <span style={{ fontWeight: 400, opacity: .7 }}>(comma-separated)</span></div>
+              <input className="dinp" placeholder="e.g. frontend, urgent"
+                value={(cv('labels') !== null ? (Array.isArray(cv('labels')) ? (cv('labels') as string[]).join(', ') : String(cv('labels'))) : '')}
+                onChange={e => set('labels', e.target.value)} />
+            </div>
+          )}
+          {visFields.has('fixVersion') && (
+            <div className="dfield">
+              <div className="dlbl">FIX VERSION</div>
+              <input className="dinp" placeholder="e.g. v2.1.0"
+                value={(cv('fixVersion') as string) ?? ''} onChange={e => set('fixVersion', e.target.value)} />
+            </div>
+          )}
+          {visFields.has('assignee') && (
+            <div className="dfield">
+              <div className="dlbl">ASSIGNEE <span style={{ fontWeight: 400, opacity: .7 }}>(display name)</span></div>
+              <input className="dinp" value={cv('assignee') as string} onChange={e => set('assignee', e.target.value)} />
             </div>
           )}
         </div>
