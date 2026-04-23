@@ -94,7 +94,8 @@ const App: React.FC = () => {
           return;
         }
         const errData = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(errData.error || `Search failed: ${response.statusText}`);
+        const detail = errData.detail ? ` — ${JSON.stringify(errData.detail)}` : '';
+        throw new Error((errData.error || `Search failed: ${response.statusText}`) + detail);
       }
 
       const rawIssues = await response.json() as JiraAPIIssue[];
