@@ -306,8 +306,8 @@ const App: React.FC = () => {
     } finally { setLoading(false); }
   };
 
-  const handleImport = async () => {
-    const toImport = Array.from(selected).map(k => issues.find(i => i.key === k)).filter(Boolean) as JiraIssue[];
+  const handleImport = async (toImport: JiraIssue[]) => {
+    if (toImport.length === 0) return;
     let yOffset = 0;
     const { x: bx, y: by } = getSelectedIssuePosition();
     for (const issue of toImport) { await addIssueToCanvas(issue, bx, by + yOffset); yOffset += 160; }
@@ -424,7 +424,7 @@ const App: React.FC = () => {
                     <div className={`gchk${allSel ? ' gchk-all' : partSel ? ' gchk-part' : ''}`}>{allSel ? '✓' : partSel ? '–' : ''}</div>
                     <span style={{ fontSize: 9, color: '#8B949E', fontFamily: "'IBM Plex Mono',monospace" }}>{selCount} of {filteredIssues.length} selected</span>
                   </div>
-                  <button id="imp-all" onClick={() => { issues.forEach(i => selected.add(i.key)); setSelected(new Set(issues.map(i => i.key))); handleImport(); }}>⬆ Import All</button>
+                  <button id="imp-all" onClick={() => handleImport(issues)}>⬆ Import All</button>
                 </div>
 
                 <div id="results-wrap" style={{ display: 'flex' }}>
@@ -451,7 +451,8 @@ const App: React.FC = () => {
                       );
                     })}
                   </div>
-                  <button id="imp-sel" disabled={selected.size === 0} onClick={handleImport}>
+                  <button id="imp-sel" disabled={selected.size === 0}
+                    onClick={() => handleImport(Array.from(selected).map(k => issues.find(i => i.key === k)).filter(Boolean) as JiraIssue[])}>
                     {selected.size > 0 ? `↗  Import ${selected.size} selected` : 'Select items to import'}
                   </button>
                 </div>
