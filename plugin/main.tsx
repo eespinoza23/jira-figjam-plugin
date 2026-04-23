@@ -65,56 +65,70 @@ function Card({
   const sc = SC[issue.status] ?? SC['To Do'];
   const hasDiff = Object.keys(diffs).length > 0;
 
+  const issueUrl = `https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`;
+
   return (
     <div
-      className={`card${hasDiff ? ' diff' : ''}${expanded ? ' expanded' : ''}`}
+      className={`card jc${hasDiff ? ' diff' : ''}${expanded ? ' expanded' : ''}`}
+      style={{ borderLeft: `3px solid ${hasDiff ? '#EAB308' : tc.color}` }}
       onClick={() => onEdit(issue)}
     >
-      <div className="c-accent" style={{ background: tc.color }} />
-      <div className="c-compact">
-        <div className="c-toprow">
-          <div className="c-type" style={{ color: tc.color }}>
-            {issue.typeIconUrl
-              ? <img src={issue.typeIconUrl} width={12} height={12} alt={issue.type} style={{ display: 'inline-block', verticalAlign: 'middle' }} />
-              : tc.icon}
-            {' '}{issue.type.toUpperCase()}
-          </div>
-          <div className="c-acts">
-            <a className="c-link" href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{issue.key} ↗</a>
-            <button className="c-sync" disabled={syncing} title={syncing ? 'Syncing…' : 'Sync from Jira'}
-              onClick={e => { e.stopPropagation(); onSync(issue.key); }}>
-              {syncing ? <span className="spin">↻</span> : '↻'}
-            </button>
-          </div>
+      {/* ── Jira-style header row: type icon + key + sync ── */}
+      <div className="jc-head">
+        <div className="jc-type-row">
+          {issue.typeIconUrl
+            ? <img src={issue.typeIconUrl} width={14} height={14} alt={issue.type} />
+            : <span style={{ fontSize: 11 }}>{tc.icon}</span>}
+          <span className="jc-key-lbl">{issue.key}</span>
         </div>
-        <div className="c-title">{issue.title}</div>
-        <div className="c-meta">
-          <Avatar name={issue.assignee} color={tc.color} />
-          <div className="m-sep" />
-          {issue.priorityIconUrl
-            ? <img src={issue.priorityIconUrl} width={12} height={12} alt={issue.priority} title={issue.priority} />
-            : <div className="m-pri" style={{ background: PC[issue.priority]?.color ?? '#D1D5DB' }} title={issue.priority} />}
-          <span className="m-status" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>{issue.status}</span>
-          {issue.points !== null && <span className="m-pts">{issue.points}p</span>}
+        <div className="jc-acts">
+          <button className="c-sync" disabled={syncing} title={syncing ? 'Syncing…' : 'Sync from Jira'}
+            onClick={e => { e.stopPropagation(); onSync(issue.key); }}>
+            <span className={syncing ? 'spin' : ''}>↻</span>
+          </button>
+          <a className="jc-ext" href={issueUrl} target="_blank" rel="noreferrer"
+            onClick={e => e.stopPropagation()} title="Open in Jira">↗</a>
         </div>
       </div>
-      {syncedAt && <span className="sync-ts">↻ Synced {syncedAt}</span>}
+
+      {/* ── Title ── */}
+      <div className="jc-title">{issue.title}</div>
+
+      {/* ── Footer: priority + points + status + assignee avatar ── */}
+      <div className="jc-footer">
+        <div className="jc-meta-l">
+          {issue.priorityIconUrl
+            ? <img src={issue.priorityIconUrl} width={14} height={14} alt={issue.priority} title={issue.priority} />
+            : <div className="m-pri" style={{ background: PC[issue.priority]?.color ?? '#D1D5DB' }} title={issue.priority} />}
+          {issue.points !== null &&
+            <span className="jc-pts">{issue.points}</span>}
+          <span className="jc-status" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>
+            {issue.status}
+          </span>
+        </div>
+        <Avatar name={issue.assignee} color={tc.color} />
+      </div>
+
+      {syncedAt && <span className="sync-ts">↻ {syncedAt}</span>}
       {hasDiff && <div className="diff-badge diff-pulse">UPDATED</div>}
+
+      {/* ── Expand toggle ── */}
       <button className="exp-btn" onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}>
         <span className="exp-arrow">▼</span>
         <span className="exp-label">{expanded ? 'Collapse' : 'Details'}</span>
       </button>
+
       {expanded && (
         <div className="c-details">
           <div className="c-fields">
             {[
-              { k: 'assignee', lbl: 'ASSIGNEE', el: <><Avatar name={issue.assignee} color={tc.color} cls="fa" /><span>{issue.assignee}</span></> },
-              { k: 'priority', lbl: 'PRIORITY', el: <span style={{ color: PC[issue.priority]?.color }}>● {issue.priority}</span> },
-              { k: 'points',   lbl: 'STORY PTS', el: issue.points !== null ? <span className="fpts">{issue.points} pts</span> : <span style={{ color: '#D1D5DB' }}>— N/A</span> },
-              { k: 'status',   lbl: 'STATUS', el: <span className="fsta" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>{issue.status}</span> },
-              { k: 'reporter', lbl: 'REPORTER', el: <span>{issue.reporter ?? '—'}</span> },
-              { k: 'fixVersion', lbl: 'FIX VER.', el: <span>{issue.fixVersion ?? '—'}</span> },
-              { k: 'updated',  lbl: 'UPDATED', el: <span>{issue.updated ?? '—'}</span> },
+              { k: 'assignee',   lbl: 'ASSIGNEE',  el: <><Avatar name={issue.assignee} color={tc.color} cls="fa" /><span>{issue.assignee}</span></> },
+              { k: 'reporter',   lbl: 'REPORTER',   el: <span>{issue.reporter ?? '—'}</span> },
+              { k: 'priority',   lbl: 'PRIORITY',   el: <span style={{ color: PC[issue.priority]?.color }}>● {issue.priority}</span> },
+              { k: 'points',     lbl: 'STORY PTS',  el: issue.points !== null ? <span className="fpts">{issue.points} pts</span> : <span style={{ color: '#D1D5DB' }}>—</span> },
+              { k: 'status',     lbl: 'STATUS',     el: <span className="fsta" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>{issue.status}</span> },
+              { k: 'fixVersion', lbl: 'FIX VER.',   el: <span>{issue.fixVersion ?? '—'}</span> },
+              { k: 'updated',    lbl: 'UPDATED',    el: <span>{issue.updated ?? '—'}</span> },
             ].map(f => (
               <div key={f.k} className={`fcell${diffs[f.k] ? ' hl' : ''}`}>
                 <span className="flbl">{f.lbl}</span>
@@ -123,14 +137,14 @@ function Card({
             ))}
           </div>
           {issue.sprint && <div className="detrow"><div className="detlbl">SPRINT</div><div className="detval">{issue.sprint}</div></div>}
-          {issue.epicLink && <div className="detrow"><div className="detlbl">EPIC LINK</div><div className="detval" style={{ color: '#7C3AED' }}>⚡ {issue.epicLink}</div></div>}
+          {issue.epicLink && <div className="detrow"><div className="detlbl">EPIC</div><div className="detval" style={{ color: '#7C3AED' }}>⚡ {issue.epicLink}</div></div>}
           {issue.components?.length > 0 && (
             <div className="detpills">{issue.components.map(c => <span key={c} className="comp-pill">{c}</span>)}</div>
           )}
           {issue.labels?.length > 0 && (
             <div className="detpills">{issue.labels.map(l => <span key={l} className="lbl-pill">{l}</span>)}</div>
           )}
-          <div className="edit-hint">✎ tap card body to edit</div>
+          <div className="edit-hint">✎ click to edit</div>
         </div>
       )}
     </div>

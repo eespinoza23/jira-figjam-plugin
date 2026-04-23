@@ -12,9 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { code, state } = req.query;
   const storedState = req.cookies.oauth_state;
-  const rawInstance = req.cookies.jira_instance || process.env.JIRA_INSTANCE_URL;
+  const rawInstance = req.cookies.jira_instance || process.env.JIRA_INSTANCE_URL || '';
 
-  // Validate instance before using
   if (!validateInstance(rawInstance)) {
     console.error('Invalid Jira instance in cookie:', rawInstance);
     return res.status(400).json({ error: 'Invalid Jira instance configuration' });
