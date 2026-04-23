@@ -411,7 +411,7 @@ const App: React.FC = () => {
                 <div className="sec" style={{ marginTop: 10 }}>
                   <div className="lbl">FILTER TYPE</div>
                   <div id="type-filter">
-                    {['All', 'Epic', 'Feature', 'Story', 'Bug'].map(t => {
+                    {['All', ...Array.from(new Set(issues.map(i => i.type)))].map(t => {
                       const tc = TC[t];
                       const active = filter === t;
                       return (
