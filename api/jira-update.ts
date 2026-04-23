@@ -26,7 +26,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fields: Record<string, unknown> = {};
 
     if (updates.title) fields.summary = updates.title;
-    if (updates.points !== undefined) fields.customfield_10000 = updates.points;
+    if (updates.points !== undefined) {
+      // Try all common story points field IDs — Jira ignores unknown custom fields
+      fields.customfield_10016 = updates.points;
+      fields.customfield_10028 = updates.points;
+      fields.customfield_10000 = updates.points;
+    }
     if (updates.priority) fields.priority = { name: updates.priority };
     if (updates.assignee) fields.assignee = { displayName: updates.assignee };
 

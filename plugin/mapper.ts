@@ -7,7 +7,10 @@ export interface JiraAPIIssue {
     issuetype: { name: string };
     priority: { name: string } | null;
     assignee: { displayName: string } | null;
-    customfield_10000?: number | null; // Story points (varies by Jira config)
+    customfield_10000?: number | null;
+    customfield_10016?: number | null; // Story points (Jira Cloud default)
+    customfield_10028?: number | null; // Story point estimate (NextGen)
+    story_points?: number | null;
     status: { name: string };
     sprint?: { name: string } | null;
     labels: string[];
@@ -28,7 +31,7 @@ export function mapJiraIssue(jiraIssue: JiraAPIIssue): JiraIssue {
     priority: mapPriority(fields.priority?.name || 'Medium'),
     title: fields.summary || jiraIssue.key,
     assignee: fields.assignee?.displayName || 'Unassigned',
-    points: fields.customfield_10000 || null,
+    points: fields.customfield_10016 ?? fields.customfield_10028 ?? fields.customfield_10000 ?? fields.story_points ?? null,
     status: mapStatus(fields.status?.name || ''),
     sprint: fields.sprint?.name || 'Backlog',
     labels: fields.labels || [],

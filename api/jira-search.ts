@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         params: {
           jql,
           maxResults: 100,
-          fields: 'summary,issuetype,priority,assignee,customfield_10000,status,sprint,labels,components,parent,fixVersions,reporter,updated',
+          fields: 'summary,issuetype,priority,assignee,customfield_10000,customfield_10016,customfield_10028,story_points,status,sprint,labels,components,parent,fixVersions,reporter,updated',
         },
         headers: { Authorization: `Bearer ${accessToken}` },
       }
