@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { AppState, JiraIssue } from './types';
+import { mapJiraIssue, JiraAPIIssue } from './mapper';
+import { syncIssueFromJira } from './api';
+import { Card } from './components/Card';
 import './styles.css';
 
 const App: React.FC = () => {
@@ -44,7 +47,10 @@ const App: React.FC = () => {
 
   const handleJQLSearch = async () => {
     const jqlInput = document.querySelector('#jql') as HTMLTextAreaElement;
-    if (!jqlInput) return;
+    if (!jqlInput || !jqlInput.value.trim()) {
+      setState(prev => ({ ...prev, error: 'Enter a JQL query' }));
+      return;
+    }
 
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
@@ -57,14 +63,16 @@ const App: React.FC = () => {
 
       if (!response.ok) {
         if (response.status === 401) {
-          setState(prev => ({ ...prev, authenticated: false, error: 'Not authenticated' }));
+          setState(prev => ({ ...prev, authenticated: false, error: 'Not authenticated', loading: false }));
           return;
         }
-        throw new Error(`Search failed: ${response.statusText}`);
+        const errData = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(errData.error || `Search failed: ${response.statusText}`);
       }
 
-      const issues = await response.json();
-      setState(prev => ({ ...prev, issues, loading: false }));
+      const rawIssues = await response.json() as JiraAPIIssue[];
+      const mappedIssues = rawIssues.map(mapJiraIssue);
+      setState(prev => ({ ...prev, issues: mappedIssues, loading: false }));
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -128,6 +136,47 @@ const App: React.FC = () => {
       error: null,
       jiraInstance: 'intact.atlassian.net',
     });
+  };
+
+  const handleSync = async (issueKey: string) => {
+    try {
+      const freshIssue = await syncIssueFromJira(issueKey);
+      const currentIssue = state.imported.find(i => i.key === issueKey);
+
+      if (currentIssue) {
+        const detectedDiffs: Record<string, unknown> = {};
+        const fieldsToCheck: (keyof JiraIssue)[] = ['title', 'status', 'assignee', 'points', 'priority'];
+
+        fieldsToCheck.forEach(field => {
+          if (currentIssue[field] !== freshIssue[field]) {
+            detectedDiffs[field] = {
+              old: currentIssue[field],
+              new: freshIssue[field],
+            };
+          }
+        });
+
+        setState(prev => ({
+          ...prev,
+          imported: prev.imported.map(i =>
+            i.key === issueKey
+              ? { ...freshIssue, lastSynced: new Date().toISOString() }
+              : i
+          ),
+          diffs: { ...prev.diffs, [issueKey]: detectedDiffs },
+        }));
+      }
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'Sync failed',
+      }));
+    }
+  };
+
+  const handleEdit = (issue: JiraIssue) => {
+    // Placeholder for Step 5: Edit Drawer + Update Sync
+    console.log('Edit issue:', issue.key);
   };
 
   return (
@@ -199,9 +248,42 @@ const App: React.FC = () => {
 
             {state.issues.length > 0 && (
               <>
-                <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em' }}>
+                <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', display: 'block', marginTop: '12px', marginBottom: '8px' }}>
                   {state.selected.size} of {state.issues.length} selected
                 </label>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', marginBottom: '8px' }}>
+                  {state.issues.map(issue => (
+                    <div
+                      key={issue.key}
+                      onClick={() => {
+                        const newSelected = new Set(state.selected);
+                        if (newSelected.has(issue.key)) {
+                          newSelected.delete(issue.key);
+                        } else {
+                          newSelected.add(issue.key);
+                        }
+                        setState(prev => ({ ...prev, selected: newSelected }));
+                      }}
+                      style={{
+                        padding: '8px',
+                        borderBottom: '1px solid #eee',
+                        cursor: 'pointer',
+                        background: state.selected.has(issue.key) ? '#EFF6FF' : '#fff',
+                        transition: 'background 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: '9px', color: '#2563EB', fontWeight: '600', marginBottom: '2px' }}>
+                        {issue.key} · {issue.type}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#111827', fontWeight: '500', marginBottom: '4px' }}>
+                        {issue.title}
+                      </div>
+                      <div style={{ fontSize: '8px', color: '#666' }}>
+                        {issue.assignee} · {issue.points ? issue.points + 'pts' : '—'} · {issue.status}
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 <button
                   onClick={handleImport}
                   disabled={state.selected.size === 0}
@@ -214,7 +296,6 @@ const App: React.FC = () => {
                     borderRadius: '6px',
                     cursor: state.selected.size === 0 ? 'not-allowed' : 'pointer',
                     fontWeight: '600',
-                    marginTop: '8px',
                   }}
                 >
                   ↗ Import {state.selected.size} selected
@@ -250,28 +331,15 @@ const App: React.FC = () => {
             Import issues to see them here
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
             {state.imported.map(issue => (
-              <div
+              <Card
                 key={issue.key}
-                style={{
-                  background: '#fff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontSize: '12px', color: '#2563EB', fontWeight: '600', marginBottom: '4px' }}>
-                  {issue.key}
-                </div>
-                <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '8px', color: '#111827' }}>
-                  {issue.title}
-                </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
-                  {issue.assignee} • {issue.points}pts • {issue.status}
-                </div>
-              </div>
+                issue={issue}
+                diffs={state.diffs[issue.key] || {}}
+                onSync={handleSync}
+                onEdit={handleEdit}
+              />
             ))}
           </div>
         )}
