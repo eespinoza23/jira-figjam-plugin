@@ -260,12 +260,54 @@ function Drawer({
                   onChange={e => {
                     const u = users.find(u => u.accountId === e.target.value);
                     if (u) { set('assigneeAccountId', u.accountId); set('assignee', u.displayName); }
+                    else { set('assigneeAccountId', ''); set('assignee', 'Unassigned'); }
                   }}>
                   <option value="">— Unassigned —</option>
                   {users.map(u => <option key={u.accountId} value={u.accountId}>{u.displayName}</option>)}
                 </select>
               ) : (
-                <input className="dinp" value={cv('assignee') as string} onChange={e => set('assignee', e.target.value)} placeholder="Loading users…" readOnly={users.length === 0} />
+                <input className="dinp" value={cv('assignee') as string} readOnly
+                  style={{ color: '#94A3B8', cursor: 'default' }} placeholder="Loading users…" />
+              )}
+            </div>
+          )}
+          {/* Read-only info fields */}
+          {(visFields.has('reporter') || visFields.has('sprint') || visFields.has('epicLink') || visFields.has('components') || visFields.has('updated')) && (
+            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="dlbl" style={{ marginBottom: 0 }}>READ-ONLY INFO</div>
+              <div className="dgrid" style={{ gap: 8 }}>
+                {visFields.has('reporter') && (
+                  <div className="dfield">
+                    <div className="dlbl">REPORTER</div>
+                    <div className="dinp" style={{ color: '#64748B', cursor: 'default', userSelect: 'text' }}>{issue.reporter || '—'}</div>
+                  </div>
+                )}
+                {visFields.has('sprint') && (
+                  <div className="dfield">
+                    <div className="dlbl">SPRINT</div>
+                    <div className="dinp" style={{ color: '#64748B', cursor: 'default', userSelect: 'text' }}>{issue.sprint || '—'}</div>
+                  </div>
+                )}
+                {visFields.has('epicLink') && issue.epicLink && (
+                  <div className="dfield">
+                    <div className="dlbl">EPIC LINK</div>
+                    <div className="dinp" style={{ color: '#7C3AED', cursor: 'default', userSelect: 'text' }}>{issue.epicLink}</div>
+                  </div>
+                )}
+                {visFields.has('updated') && (
+                  <div className="dfield">
+                    <div className="dlbl">LAST UPDATED</div>
+                    <div className="dinp" style={{ color: '#64748B', cursor: 'default', userSelect: 'text', fontSize: 11 }}>{issue.updated || '—'}</div>
+                  </div>
+                )}
+              </div>
+              {visFields.has('components') && issue.components?.length > 0 && (
+                <div className="dfield">
+                  <div className="dlbl">COMPONENTS</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {issue.components.map(c => <span key={c} className="comp-pill">{c}</span>)}
+                  </div>
+                </div>
               )}
             </div>
           )}

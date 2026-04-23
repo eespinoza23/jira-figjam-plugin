@@ -21,7 +21,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   // APP_URL is stable; VERCEL_PROJECT_PRODUCTION_URL is set by Vercel for prod; VERCEL_URL is per-deployment
   const appUrl = process.env.APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   const redirectUri = `https://${appUrl}/api/jira-callback`;
-  const scope = 'read:me read:jira-work write:jira-work offline_access';
+  const scope = 'read:me read:jira-work write:jira-work read:jira-user offline_access';
   const state = randomBytes(16).toString('hex');
 
   res.setHeader('Set-Cookie', [
