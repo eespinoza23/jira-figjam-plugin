@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cloudId = req.cookies.cloud_id || await getCloudId(accessToken);
 
     const response = await axios.get(
-      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search`,
+      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search/jql`,
       {
         params: { jql, maxResults: 100 },
         headers: { Authorization: `Bearer ${accessToken}` },
