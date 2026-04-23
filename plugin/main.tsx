@@ -511,7 +511,7 @@ const App: React.FC = () => {
             <div style={{ fontSize: 11, color: '#C4C9D4', fontFamily: "'IBM Plex Mono',monospace" }}>Canvas is empty</div>
           </div>
         ) : (
-          <div id="ccontent" data-size={cardSize}>
+          <div id="ccontent" data-size={cardSize} style={{ display: 'block' }}>
             {groups.map(g => {
               const tc = TC[g.type];
               return (
