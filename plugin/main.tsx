@@ -73,7 +73,12 @@ function Card({
       <div className="c-accent" style={{ background: tc.color }} />
       <div className="c-compact">
         <div className="c-toprow">
-          <div className="c-type" style={{ color: tc.color }}>{tc.icon} {issue.type.toUpperCase()}</div>
+          <div className="c-type" style={{ color: tc.color }}>
+            {issue.typeIconUrl
+              ? <img src={issue.typeIconUrl} width={12} height={12} alt={issue.type} style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+              : tc.icon}
+            {' '}{issue.type.toUpperCase()}
+          </div>
           <div className="c-acts">
             <a className="c-link" href={`https://${jiraInstance}/browse/${issue.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{issue.key} ↗</a>
             <button className="c-sync" disabled={syncing} title={syncing ? 'Syncing…' : 'Sync from Jira'}
@@ -86,7 +91,9 @@ function Card({
         <div className="c-meta">
           <Avatar name={issue.assignee} color={tc.color} />
           <div className="m-sep" />
-          <div className="m-pri" style={{ background: PC[issue.priority]?.color ?? '#D1D5DB' }} title={issue.priority} />
+          {issue.priorityIconUrl
+            ? <img src={issue.priorityIconUrl} width={12} height={12} alt={issue.priority} title={issue.priority} />
+            : <div className="m-pri" style={{ background: PC[issue.priority]?.color ?? '#D1D5DB' }} title={issue.priority} />}
           <span className="m-status" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>{issue.status}</span>
           {issue.points !== null && <span className="m-pts">{issue.points}p</span>}
         </div>
@@ -439,7 +446,9 @@ const App: React.FC = () => {
                           <div className={`ichk${sel ? ' on' : ''}`} style={{ '--tc': tc.color } as React.CSSProperties}>{sel ? '✓' : ''}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
-                              <span style={{ fontSize: 8, color: tc.color, fontFamily: "'IBM Plex Mono',monospace" }}>{tc.icon} {issue.type}</span>
+                              <span style={{ fontSize: 8, color: tc.color, fontFamily: "'IBM Plex Mono',monospace", display: 'flex', alignItems: 'center', gap: 3 }}>
+                                {issue.typeIconUrl ? <img src={issue.typeIconUrl} width={10} height={10} alt={issue.type} /> : tc.icon} {issue.type}
+                              </span>
                               <span style={{ fontSize: 8, color: '#374151', fontFamily: "'IBM Plex Mono',monospace" }}>{issue.key}</span>
                             </div>
                             <div style={{ fontSize: 10, color: '#C9D1D9', lineHeight: 1.4, fontWeight: 500 }}>{issue.title}</div>

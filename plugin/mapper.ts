@@ -4,8 +4,8 @@ export interface JiraAPIIssue {
   key: string;
   fields: {
     summary: string;
-    issuetype: { name: string };
-    priority: { name: string } | null;
+    issuetype: { name: string; iconUrl?: string };
+    priority: { name: string; iconUrl?: string } | null;
     assignee: { displayName: string } | null;
     customfield_10000?: number | null;
     customfield_10016?: number | null; // Story points (Jira Cloud default)
@@ -40,6 +40,8 @@ export function mapJiraIssue(jiraIssue: JiraAPIIssue): JiraIssue {
     fixVersion: fields.fixVersions?.[0]?.name || 'Unassigned',
     reporter: fields.reporter?.displayName || 'Unknown',
     updated: fields.updated ? formatDate(fields.updated) : 'Unknown',
+    typeIconUrl: fields.issuetype?.iconUrl,
+    priorityIconUrl: fields.priority?.iconUrl,
   };
 }
 

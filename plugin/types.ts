@@ -13,6 +13,8 @@ export interface JiraIssue {
   fixVersion: string;
   reporter: string;
   updated: string;
+  typeIconUrl?: string;
+  priorityIconUrl?: string;
   lastSynced?: string;
   localChanges?: Record<string, unknown>;
 }
