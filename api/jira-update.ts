@@ -27,16 +27,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (updates.title) fields.summary = updates.title;
     if (updates.points !== undefined) {
-      // Try all common story points field IDs — Jira ignores unknown custom fields
+      // customfield_10016 = Story Points (Jira Cloud company-managed)
       fields.customfield_10016 = updates.points;
-      fields.customfield_10028 = updates.points;
-      fields.customfield_10000 = updates.points;
     }
     if (updates.priority) fields.priority = { name: updates.priority };
     if (updates.assignee) fields.assignee = { displayName: updates.assignee };
 
     if (Object.keys(fields).length > 0) {
-      await axios.put(base, { fields }, { headers });
+      try {
+        await axios.put(base, { fields }, { headers });
+      } catch (fieldError) {
+        if (axios.isAxiosError(fieldError) && fieldError.response?.status === 400 && updates.points !== undefined) {
+          // customfield_10016 rejected — retry with 10028 (NextGen) then 10000 (legacy)
+          const fallbacks = ['customfield_10028', 'customfield_10000'];
+          let saved = false;
+          for (const fieldId of fallbacks) {
+            try {
+              const retry = { ...fields };
+              delete retry.customfield_10016;
+              retry[fieldId] = updates.points;
+              await axios.put(base, { fields: retry }, { headers });
+              saved = true;
+              break;
+            } catch { /* try next */ }
+          }
+          if (!saved) throw fieldError;
+        } else {
+          throw fieldError;
+        }
+      }
     }
 
     // Status requires a transition

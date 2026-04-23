@@ -17,7 +17,8 @@ async function apiCall<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(error.error || `API Error: ${response.statusText}`);
+    const detail = error.detail ? ` — ${JSON.stringify(error.detail)}` : '';
+    throw new Error((error.error || `API Error: ${response.statusText}`) + detail);
   }
 
   return response.json();
