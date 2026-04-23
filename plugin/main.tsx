@@ -5,6 +5,7 @@ import { mapJiraIssue, JiraAPIIssue } from './mapper';
 import { syncIssueFromJira, updateIssueInJira } from './api';
 import { Card } from './components/Card';
 import { Drawer } from './components/Drawer';
+import { addIssueToCanvas, setupFigJamListeners, getSelectedIssuePosition } from './figjam';
 import './styles.css';
 
 const App: React.FC = () => {
@@ -23,6 +24,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     checkAuth();
+    setupFigJamListeners();
   }, []);
 
   const handleConnect = () => {
@@ -84,10 +86,18 @@ const App: React.FC = () => {
     }
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const selected = Array.from(state.selected).map(key =>
       state.issues.find(i => i.key === key)
     ).filter(Boolean) as JiraIssue[];
+
+    // Place issues on FigJam canvas
+    let yOffset = 0;
+    const { x: baseX, y: baseY } = getSelectedIssuePosition();
+    for (const issue of selected) {
+      await addIssueToCanvas(issue, baseX, baseY + yOffset);
+      yOffset += 160; // Spacing between stickies
+    }
 
     setState(prev => ({
       ...prev,

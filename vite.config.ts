@@ -1,24 +1,31 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'copy-html',
+      generateBundle() {
+        const html = fs.readFileSync('index.html', 'utf-8');
+        this.emitFile({
+          type: 'asset',
+          fileName: 'index.html',
+          source: html,
+        });
+      },
+    },
+  ],
   build: {
     outDir: 'dist',
-    lib: {
-      entry: path.resolve(__dirname, 'plugin/main.tsx'),
-      name: 'JiraFigJamPlugin',
-      formats: ['iife'],
-      fileName: () => 'jira-plugin.js',
-    },
     rollupOptions: {
-      external: ['react', 'react-dom'],
+      input: path.resolve(__dirname, 'index.html'),
       output: {
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
-        },
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
       },
     },
   },

@@ -1,0 +1,16 @@
+{
+  "name": "Jira Multi-Import for FigJam",
+  "id": "jira-multi-import-figjam",
+  "api": "1.0.0",
+  "main": "dist/index.html",
+  "editorType": [
+    "figjam"
+  ],
+  "permissions": [
+    "network:access:external_api"
+  ],
+  "documentAccess": "editable",
+  "build": "dist/index.js",
+  "ui": "dist/index.html",
+  "containsWidget": false
+}
