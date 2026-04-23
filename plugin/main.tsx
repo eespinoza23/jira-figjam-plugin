@@ -414,7 +414,7 @@ const App: React.FC = () => {
           <div className="p-row">
             <div className="p-ico">🔌</div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#F1F5F9' }}>Jira Multi-Import</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1E293B' }}>Jira Multi-Import</div>
               <div style={{ fontSize: 9, color: '#4B5563', fontFamily: "'IBM Plex Mono',monospace", marginTop: 1 }}>for FigJam</div>
             </div>
           </div>
