@@ -1,408 +1,582 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
-import { AppState, JiraIssue } from './types';
+import { JiraIssue } from './types';
 import { mapJiraIssue, JiraAPIIssue } from './mapper';
-import { syncIssueFromJira, updateIssueInJira } from './api';
-import { Card } from './components/Card';
-import { Drawer } from './components/Drawer';
+import { updateIssueInJira, syncIssueFromJira } from './api';
 import { addIssueToCanvas, setupFigJamListeners, getSelectedIssuePosition } from './figjam';
 import './styles.css';
 
+// ── Constants ──────────────────────────────────────────────────
+const TC: Record<string, { color: string; icon: string }> = {
+  Epic:    { color: '#7C3AED', icon: '⚡' },
+  Feature: { color: '#0284C7', icon: '✨' },
+  Story:   { color: '#2563EB', icon: '📖' },
+  Bug:     { color: '#DC2626', icon: '🐛' },
+};
+const PC: Record<string, { color: string }> = {
+  Critical: { color: '#EF4444' },
+  High:     { color: '#F97316' },
+  Medium:   { color: '#EAB308' },
+  Low:      { color: '#D1D5DB' },
+};
+const SC: Record<string, { bg: string; c: string; b: string }> = {
+  'To Do':      { bg: '#F3F4F6', c: '#6B7280', b: '#E5E7EB' },
+  'In Progress':{ bg: '#EFF6FF', c: '#2563EB', b: '#BFDBFE' },
+  Done:         { bg: '#F0FDF4', c: '#16A34A', b: '#BBF7D0' },
+};
+
+const FIELD_DEFS = [
+  { k: 'assignee',   label: 'Assignee',           def: true },
+  { k: 'priority',   label: 'Priority',            def: true },
+  { k: 'points',     label: 'Story Points',        def: true },
+  { k: 'status',     label: 'Status',              def: true },
+  { k: 'sprint',     label: 'Sprint / Iteration',  def: true },
+  { k: 'labels',     label: 'Labels',              def: true },
+  { k: 'components', label: 'Components',          def: false },
+  { k: 'epicLink',   label: 'Epic Link',           def: false },
+  { k: 'fixVersion', label: 'Fix Version',         def: false },
+  { k: 'reporter',   label: 'Reporter',            def: false },
+  { k: 'updated',    label: 'Last Updated',        def: false },
+];
+
+// ── Helpers ────────────────────────────────────────────────────
+const ini = (n: string) => n === 'Unassigned' ? '?' : n.split(' ').map(x => x[0]).join('');
+function Avatar({ name, color, cls = 'm-avatar' }: { name: string; color: string; cls?: string }) {
+  const bg = name === 'Unassigned' ? '#E5E7EB' : color + '22';
+  const br = name === 'Unassigned' ? '#D1D5DB' : color + '55';
+  const fc = name === 'Unassigned' ? '#9CA3AF' : color;
+  return <div className={cls} style={{ background: bg, border: `1.5px solid ${br}`, color: fc }}>{ini(name)}</div>;
+}
+
+// ── Card component ─────────────────────────────────────────────
+function Card({
+  issue, diffs, jiraInstance, onEdit, onSync, syncedAt, syncing,
+}: {
+  issue: JiraIssue;
+  diffs: Record<string, unknown>;
+  jiraInstance: string;
+  onEdit: (issue: JiraIssue) => void;
+  onSync: (key: string) => void;
+  syncedAt: string | null;
+  syncing: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const tc = TC[issue.type] ?? TC.Story;
+  const sc = SC[issue.status] ?? SC['To Do'];
+  const hasDiff = Object.keys(diffs).length > 0;
+
+  return (
+    <div
+      className={`card${hasDiff ? ' diff' : ''}${expanded ? ' expanded' : ''}`}
+      onClick={() => onEdit(issue)}
+    >
+      <div className="c-accent" style={{ background: tc.color }} />
+      <div className="c-compact">
+        <div className="c-toprow">
+          <div className="c-type" style={{ color: tc.color }}>{tc.icon} {issue.type.toUpperCase()}</div>
+          <div className="c-acts">
+            <a className="c-link" href={`https://${jiraInstance}/browse/${issue.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>{issue.key} ↗</a>
+            <button className="c-sync" disabled={syncing} title={syncing ? 'Syncing…' : 'Sync from Jira'}
+              onClick={e => { e.stopPropagation(); onSync(issue.key); }}>
+              {syncing ? <span className="spin">↻</span> : '↻'}
+            </button>
+          </div>
+        </div>
+        <div className="c-title">{issue.title}</div>
+        <div className="c-meta">
+          <Avatar name={issue.assignee} color={tc.color} />
+          <div className="m-sep" />
+          <div className="m-pri" style={{ background: PC[issue.priority]?.color ?? '#D1D5DB' }} title={issue.priority} />
+          <span className="m-status" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>{issue.status}</span>
+          {issue.points !== null && <span className="m-pts">{issue.points}p</span>}
+        </div>
+      </div>
+      {syncedAt && <span className="sync-ts">↻ Synced {syncedAt}</span>}
+      {hasDiff && <div className="diff-badge diff-pulse">UPDATED</div>}
+      <button className="exp-btn" onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}>
+        <span className="exp-arrow">▼</span>
+        <span className="exp-label">{expanded ? 'Collapse' : 'Details'}</span>
+      </button>
+      {expanded && (
+        <div className="c-details">
+          <div className="c-fields">
+            {[
+              { k: 'assignee', lbl: 'ASSIGNEE', el: <><Avatar name={issue.assignee} color={tc.color} cls="fa" /><span>{issue.assignee}</span></> },
+              { k: 'priority', lbl: 'PRIORITY', el: <span style={{ color: PC[issue.priority]?.color }}>● {issue.priority}</span> },
+              { k: 'points',   lbl: 'STORY PTS', el: issue.points !== null ? <span className="fpts">{issue.points} pts</span> : <span style={{ color: '#D1D5DB' }}>— N/A</span> },
+              { k: 'status',   lbl: 'STATUS', el: <span className="fsta" style={{ color: sc.c, background: sc.bg, border: `1px solid ${sc.b}` }}>{issue.status}</span> },
+              { k: 'reporter', lbl: 'REPORTER', el: <span>{issue.reporter ?? '—'}</span> },
+              { k: 'fixVersion', lbl: 'FIX VER.', el: <span>{issue.fixVersion ?? '—'}</span> },
+              { k: 'updated',  lbl: 'UPDATED', el: <span>{issue.updated ?? '—'}</span> },
+            ].map(f => (
+              <div key={f.k} className={`fcell${diffs[f.k] ? ' hl' : ''}`}>
+                <span className="flbl">{f.lbl}</span>
+                <span className="fval">{f.el}</span>
+              </div>
+            ))}
+          </div>
+          {issue.sprint && <div className="detrow"><div className="detlbl">SPRINT</div><div className="detval">{issue.sprint}</div></div>}
+          {issue.epicLink && <div className="detrow"><div className="detlbl">EPIC LINK</div><div className="detval" style={{ color: '#7C3AED' }}>⚡ {issue.epicLink}</div></div>}
+          {issue.components?.length > 0 && (
+            <div className="detpills">{issue.components.map(c => <span key={c} className="comp-pill">{c}</span>)}</div>
+          )}
+          {issue.labels?.length > 0 && (
+            <div className="detpills">{issue.labels.map(l => <span key={l} className="lbl-pill">{l}</span>)}</div>
+          )}
+          <div className="edit-hint">✎ tap card body to edit</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Drawer component ───────────────────────────────────────────
+function Drawer({
+  issue, jiraInstance, visFields, onClose, onSave,
+}: {
+  issue: JiraIssue | null;
+  jiraInstance: string;
+  visFields: Set<string>;
+  onClose: () => void;
+  onSave: (key: string, changes: Record<string, unknown>) => Promise<void>;
+}) {
+  const [changes, setChanges] = useState<Record<string, unknown>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ptsRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setChanges({}); setError(null); }, [issue?.key]);
+
+  if (!issue) return null;
+  const tc = TC[issue.type] ?? TC.Story;
+  const cv = (f: keyof JiraIssue) => (changes[f] ?? issue[f]) as string | number | null;
+  const set = (f: string, v: unknown) => { setChanges(p => ({ ...p, [f]: v })); setError(null); };
+
+  const handleSave = async () => {
+    if (Object.keys(changes).length === 0) { onClose(); return; }
+    setSaving(true);
+    try {
+      await onSave(issue.key, changes);
+      setChanges({});
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <>
+      <div className="overlay open" onClick={onClose} />
+      <div className="bsheet" style={{ display: 'block' }}>
+        <div className="bhandle" />
+        <div className="bheader">
+          <div className="btitle">
+            <span>{tc.icon} {issue.type}</span>
+            <a className="dklink" href={`https://${jiraInstance}/browse/${issue.key}`} target="_blank" rel="noreferrer">{issue.key} ↗</a>
+          </div>
+          <button className="xbtn" onClick={onClose}>✕</button>
+        </div>
+        <div className="dbody">
+          <div className="dfield">
+            <div className="dlbl">TITLE / SUMMARY</div>
+            <textarea className="dta" rows={3} value={cv('title') as string} onChange={e => set('title', e.target.value)} />
+          </div>
+          {visFields.has('assignee') && (
+            <div className="dfield">
+              <div className="dlbl">ASSIGNEE</div>
+              <input className="dinp" value={cv('assignee') as string} onChange={e => set('assignee', e.target.value)} />
+            </div>
+          )}
+          {visFields.has('points') && (
+            <div className="dfield">
+              <div className="dlbl">STORY POINTS</div>
+              <div className="pts-wrap">
+                <input ref={ptsRef} className="pts-inp" type="number" min={0} step={1} placeholder="—"
+                  value={cv('points') !== null ? String(cv('points')) : ''} onChange={e => set('points', e.target.value === '' ? null : parseInt(e.target.value))} />
+                <div className="pts-hint">Any whole number<br />Leave blank = N/A</div>
+                <button className="pts-clr" onClick={() => { set('points', null); if (ptsRef.current) ptsRef.current.value = ''; }}>✕ Clear</button>
+              </div>
+            </div>
+          )}
+          {(visFields.has('priority') || visFields.has('status')) && (
+            <div className="dgrid" style={{ gridTemplateColumns: visFields.has('priority') && visFields.has('status') ? '1fr 1fr' : '1fr' }}>
+              {visFields.has('priority') && (
+                <div className="dfield">
+                  <div className="dlbl">PRIORITY</div>
+                  <select className="dsel" value={cv('priority') as string} onChange={e => set('priority', e.target.value)}>
+                    {['Critical', 'High', 'Medium', 'Low'].map(p => <option key={p}>{p}</option>)}
+                  </select>
+                </div>
+              )}
+              {visFields.has('status') && (
+                <div className="dfield">
+                  <div className="dlbl">STATUS</div>
+                  <select className="dsel" value={cv('status') as string} onChange={e => set('status', e.target.value)}>
+                    {['To Do', 'In Progress', 'Done'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        {error && <div className="derr" style={{ margin: '0 20px 12px' }}>{error}</div>}
+        <div className="dnote">⚡ Saves locally · syncs to Jira via proxy on confirm</div>
+        <div className="dfooter">
+          <button className="cbtn" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="sbtn" onClick={handleSave} disabled={saving || Object.keys(changes).length === 0}>
+            {saving ? <><span className="spin">↻</span> Syncing…</> : '✓  Save & Sync to Jira'}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── App ────────────────────────────────────────────────────────
 const App: React.FC = () => {
-  const [state, setState] = useState<AppState>({
-    authenticated: false,
-    token: null,
-    issues: [],
-    imported: [],
-    selected: new Set(),
-    diffs: {},
-    loading: false,
-    error: null,
-    jiraInstance: 'intact.atlassian.net',
-  });
+  const [authenticated, setAuthenticated] = useState(false);
+  const [jiraInstance, setJiraInstance] = useState('');
+  const [instanceInput, setInstanceInput] = useState('');
+  const [issues, setIssues] = useState<JiraIssue[]>([]);
+  const [imported, setImported] = useState<JiraIssue[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [diffs, setDiffs] = useState<Record<string, Record<string, unknown>>>({});
+  const [syncedAt, setSyncedAt] = useState<Record<string, string>>({});
+  const [syncing, setSyncing] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState('All');
   const [editingIssue, setEditingIssue] = useState<JiraIssue | null>(null);
-  const [instanceInput, setInstanceInput] = useState<string>('');
+  const [visFields, setVisFields] = useState<Set<string>>(new Set(FIELD_DEFS.filter(f => f.def).map(f => f.k)));
+  const [cfgOpen, setCfgOpen] = useState(false);
+  const [cardSize, setCardSize] = useState('M');
+  const [mobileTab, setMobileTab] = useState<'panel' | 'canvas'>('panel');
 
   useEffect(() => {
     checkAuth();
     setupFigJamListeners();
   }, []);
 
-  const normalizeInstance = (instance: string): string => {
-    return instance
-      .toLowerCase()
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '')
-      .trim();
-  };
-
-  const validateInstance = (instance: string): boolean => {
-    return /^[a-z0-9-]+\.atlassian\.net$/.test(instance);
-  };
-
-  const handleConnect = () => {
-    const cleanInstance = normalizeInstance(instanceInput);
-    if (!validateInstance(cleanInstance)) {
-      setState(prev => ({ ...prev, error: 'Invalid Jira instance. Use format: myinstance.atlassian.net' }));
-      return;
-    }
-    sessionStorage.setItem('jira_instance', cleanInstance);
-    setState(prev => ({ ...prev, jiraInstance: cleanInstance }));
-    window.location.href = `/api/jira-auth?instance=${encodeURIComponent(cleanInstance)}`;
-  };
-
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/jira-me', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        setState(prev => ({
-          ...prev,
-          authenticated: true,
-          error: null,
-          jiraInstance: data.instance || prev.jiraInstance,
-        }));
+      const r = await fetch('/api/jira-me', { credentials: 'include' });
+      if (r.ok) {
+        const d = await r.json().catch(() => ({}));
+        setAuthenticated(true);
+        if (d.instance) setJiraInstance(d.instance);
       } else {
-        const data = await response.json().catch(() => ({}));
-        setState(prev => ({
-          ...prev,
-          authenticated: false,
-          error: `Auth failed (${response.status}): ${data.error || 'unknown error'}`,
-        }));
+        const d = await r.json().catch(() => ({}));
+        setAuthenticated(false);
+        if (r.status !== 401) setError(`Auth failed (${r.status}): ${d.error || 'unknown'}`);
       }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-    }
+    } catch { /* network error */ }
+  };
+
+  const normalizeInstance = (s: string) => s.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
+  const validateInstance = (s: string) => /^[a-z0-9-]+\.atlassian\.net$/.test(s);
+
+  const handleConnect = () => {
+    const clean = normalizeInstance(instanceInput);
+    if (!validateInstance(clean)) { setError('Invalid format. Use: mycompany.atlassian.net'); return; }
+    sessionStorage.setItem('jira_instance', clean);
+    window.location.href = `/api/jira-auth?instance=${encodeURIComponent(clean)}`;
   };
 
   const handleJQLSearch = async () => {
-    const jqlInput = document.querySelector('#jql') as HTMLTextAreaElement;
-    if (!jqlInput || !jqlInput.value.trim()) {
-      setState(prev => ({ ...prev, error: 'Enter a JQL query' }));
-      return;
-    }
-
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    const el = document.querySelector('#jql') as HTMLTextAreaElement;
+    if (!el?.value.trim()) { setError('Enter a JQL query'); return; }
+    setLoading(true); setError(null);
     try {
-      const response = await fetch('/api/jira-search', {
+      const r = await fetch('/api/jira-search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jql: jqlInput.value }),
+        body: JSON.stringify({ jql: el.value }),
         credentials: 'include',
       });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          setState(prev => ({ ...prev, authenticated: false, error: 'Not authenticated', loading: false }));
-          return;
-        }
-        const errData = await response.json().catch(() => ({ error: response.statusText }));
-        const detail = errData.detail ? ` — ${JSON.stringify(errData.detail)}` : '';
-        throw new Error((errData.error || `Search failed: ${response.statusText}`) + detail);
+      if (!r.ok) {
+        if (r.status === 401) { setAuthenticated(false); setLoading(false); return; }
+        const d = await r.json().catch(() => ({ error: r.statusText }));
+        const detail = d.detail ? ` — ${JSON.stringify(d.detail)}` : '';
+        throw new Error((d.error || r.statusText) + detail);
       }
-
-      const rawIssues = await response.json() as JiraAPIIssue[];
-      const mappedIssues = rawIssues.map(mapJiraIssue);
-      setState(prev => ({ ...prev, issues: mappedIssues, loading: false }));
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Search failed',
-        loading: false,
-      }));
-    }
+      const raw = await r.json() as JiraAPIIssue[];
+      setIssues(raw.map(mapJiraIssue));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Search failed');
+    } finally { setLoading(false); }
   };
 
   const handleImport = async () => {
-    const selected = Array.from(state.selected).map(key =>
-      state.issues.find(i => i.key === key)
-    ).filter(Boolean) as JiraIssue[];
-
-    // Place issues on FigJam canvas
+    const toImport = Array.from(selected).map(k => issues.find(i => i.key === k)).filter(Boolean) as JiraIssue[];
     let yOffset = 0;
-    const { x: baseX, y: baseY } = getSelectedIssuePosition();
-    for (const issue of selected) {
-      await addIssueToCanvas(issue, baseX, baseY + yOffset);
-      yOffset += 160; // Spacing between stickies
-    }
-
-    setState(prev => ({
-      ...prev,
-      imported: selected,
-      selected: new Set(),
-    }));
-  };
-
-  const handleLogout = () => {
-    setState({
-      authenticated: false,
-      token: null,
-      issues: [],
-      imported: [],
-      selected: new Set(),
-      diffs: {},
-      loading: false,
-      error: null,
-      jiraInstance: 'intact.atlassian.net',
+    const { x: bx, y: by } = getSelectedIssuePosition();
+    for (const issue of toImport) { await addIssueToCanvas(issue, bx, by + yOffset); yOffset += 160; }
+    setImported(prev => {
+      const existing = new Set(prev.map(i => i.key));
+      return [...prev, ...toImport.filter(i => !existing.has(i.key))];
     });
+    setSelected(new Set());
+    if (window.innerWidth <= 700) setMobileTab('canvas');
   };
 
-  const handleSync = async (issueKey: string) => {
+  const handleSync = async (key: string) => {
+    setSyncing(p => ({ ...p, [key]: true }));
     try {
-      const freshIssue = await syncIssueFromJira(issueKey);
-      const currentIssue = state.imported.find(i => i.key === issueKey);
-
-      if (currentIssue) {
-        const detectedDiffs: Record<string, unknown> = {};
-        const fieldsToCheck: (keyof JiraIssue)[] = ['title', 'status', 'assignee', 'points', 'priority'];
-
-        fieldsToCheck.forEach(field => {
-          if (currentIssue[field] !== freshIssue[field]) {
-            detectedDiffs[field] = {
-              old: currentIssue[field],
-              new: freshIssue[field],
-            };
-          }
+      const fresh = await syncIssueFromJira(key);
+      const current = imported.find(i => i.key === key);
+      if (current) {
+        const detected: Record<string, unknown> = {};
+        (['title', 'status', 'assignee', 'points', 'priority'] as (keyof JiraIssue)[]).forEach(f => {
+          if (current[f] !== fresh[f]) detected[f] = { old: current[f], new: fresh[f] };
         });
-
-        setState(prev => ({
-          ...prev,
-          imported: prev.imported.map(i =>
-            i.key === issueKey
-              ? { ...freshIssue, lastSynced: new Date().toISOString() }
-              : i
-          ),
-          diffs: { ...prev.diffs, [issueKey]: detectedDiffs },
-        }));
+        setImported(p => p.map(i => i.key === key ? { ...fresh, lastSynced: new Date().toISOString() } : i));
+        setDiffs(p => ({ ...p, [key]: detected }));
+        setSyncedAt(p => ({ ...p, [key]: 'just now' }));
       }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Sync failed',
-      }));
-    }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Sync failed');
+    } finally { setSyncing(p => ({ ...p, [key]: false })); }
   };
 
-  const handleEdit = (issue: JiraIssue) => {
-    setEditingIssue(issue);
+  const handleSaveEdit = async (key: string, changes: Record<string, unknown>) => {
+    const updated = await updateIssueInJira(key, changes);
+    setImported(p => p.map(i => i.key === key ? { ...updated, lastSynced: new Date().toISOString() } : i));
+    setDiffs(p => ({ ...p, [key]: {} }));
   };
 
-  const handleSaveEdit = async (issueKey: string, changes: Record<string, unknown>) => {
-    try {
-      const updatedIssue = await updateIssueInJira(issueKey, changes);
-
-      setState(prev => ({
-        ...prev,
-        imported: prev.imported.map(i =>
-          i.key === issueKey
-            ? { ...updatedIssue, lastSynced: new Date().toISOString() }
-            : i
-        ),
-        diffs: { ...prev.diffs, [issueKey]: {} },
-      }));
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Update failed',
-      }));
-      throw error;
-    }
-  };
+  const filteredIssues = filter === 'All' ? issues : issues.filter(i => i.type === filter);
+  const selCount = Array.from(selected).filter(k => filteredIssues.some(i => i.key === k)).length;
+  const allSel = filteredIssues.length > 0 && filteredIssues.every(i => selected.has(i.key));
+  const partSel = selCount > 0 && !allSel;
+  const groups = ['Epic', 'Feature', 'Story', 'Bug'].map(t => ({ type: t, items: imported.filter(i => i.type === t) })).filter(g => g.items.length > 0);
+  const diffCount = Object.values(diffs).filter(d => Object.keys(d).length > 0).length;
 
   return (
-    <div id="app" style={{ display: 'flex', height: '100vh', position: 'relative' }}>
-      {/* Left Panel */}
-      <div style={{ width: '320px', borderRight: '1px solid #ccc', padding: '16px', overflowY: 'auto' }}>
-        <h2>🔌 Jira Multi-Import</h2>
-        <p style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>for FigJam</p>
+    <div id="app" className={mobileTab === 'canvas' ? 'mc' : ''}>
+      {/* ══ PANEL ══ */}
+      <div id="panel">
+        <div className="p-head">
+          <div className="p-row">
+            <div className="p-ico">🔌</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#F1F5F9' }}>Jira Multi-Import</div>
+              <div style={{ fontSize: 9, color: '#4B5563', fontFamily: "'IBM Plex Mono',monospace", marginTop: 1 }}>for FigJam</div>
+            </div>
+          </div>
+          {authenticated ? (
+            <div className="conn"><div className="conn-dot" />{jiraInstance || 'Connected'} · OAuth ✓</div>
+          ) : (
+            <div className="conn conn-err"><div className="conn-dot" />Not connected</div>
+          )}
+        </div>
 
-        {!state.authenticated ? (
+        {!authenticated ? (
           <>
-            <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', display: 'block', marginBottom: '8px' }}>
-              JIRA INSTANCE URL
-            </label>
-            <input
-              type="text"
-              placeholder="e.g., mycompany.atlassian.net"
-              value={instanceInput}
-              onChange={e => setInstanceInput(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                marginBottom: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '11px',
-              }}
-            />
-            <button
-              onClick={handleConnect}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#2563EB',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: '600',
-              }}
-            >
-              Connect Jira
-            </button>
+            {error && <div className="err-bar">{error}</div>}
+            <div className="sec" style={{ paddingTop: 16 }}>
+              <div className="lbl">JIRA INSTANCE URL</div>
+              <input type="text" placeholder="mycompany.atlassian.net" value={instanceInput}
+                onChange={e => setInstanceInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleConnect()}
+                style={{ width: '100%', background: '#0D1117', border: '1px solid #252830', borderRadius: 7, color: '#E2E8F0', fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: '9px 11px', outline: 'none' }}
+              />
+              <button id="exec-btn" style={{ marginTop: 10 }} onClick={handleConnect}>Connect Jira</button>
+            </div>
           </>
         ) : (
           <>
-            <div style={{ fontSize: '12px', color: '#4ADE80', marginBottom: '12px', padding: '8px', background: '#0F2A1A', borderRadius: '4px' }}>
-              ✓ {state.jiraInstance} - Connected
+            <div className="sec">
+              <div className="lbl">JQL QUERY</div>
+              <textarea id="jql" rows={3} defaultValue="project = CRT AND sprint in openSprints()" />
+              <button id="exec-btn" disabled={loading} onClick={handleJQLSearch}>
+                {loading ? <><span className="spin">⟳</span> Fetching…</> : '▶ Execute JQL'}
+              </button>
             </div>
-            <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em' }}>JQL QUERY</label>
-            <textarea
-              id="jql"
-              rows={3}
-              defaultValue="project = CRT AND sprint in openSprints()"
-              style={{
-                width: '100%',
-                padding: '8px',
-                marginBottom: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '11px',
-              }}
-            />
-            <button
-              onClick={handleJQLSearch}
-              disabled={state.loading}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: state.loading ? '#ccc' : '#2563EB',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: state.loading ? 'not-allowed' : 'pointer',
-                fontWeight: '600',
-                marginBottom: '16px',
-              }}
-            >
-              {state.loading ? '⟳ Searching...' : '▶ Execute JQL'}
-            </button>
 
-            {state.error && (
-              <div style={{ fontSize: '12px', color: '#EF4444', background: '#FEE2E2', padding: '8px', borderRadius: '4px', marginBottom: '12px' }}>
-                {state.error}
-              </div>
-            )}
+            {error && <div className="err-bar">{error}</div>}
 
-            {state.issues.length > 0 && (
+            {issues.length > 0 && (
               <>
-                <label style={{ fontSize: '10px', color: '#666', letterSpacing: '0.1em', display: 'block', marginTop: '12px', marginBottom: '8px' }}>
-                  {state.selected.size} of {state.issues.length} selected
-                </label>
-                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', marginBottom: '8px' }}>
-                  {state.issues.map(issue => (
-                    <div
-                      key={issue.key}
-                      onClick={() => {
-                        const newSelected = new Set(state.selected);
-                        if (newSelected.has(issue.key)) {
-                          newSelected.delete(issue.key);
-                        } else {
-                          newSelected.add(issue.key);
-                        }
-                        setState(prev => ({ ...prev, selected: newSelected }));
-                      }}
-                      style={{
-                        padding: '8px',
-                        borderBottom: '1px solid #eee',
-                        cursor: 'pointer',
-                        background: state.selected.has(issue.key) ? '#EFF6FF' : '#fff',
-                        transition: 'background 0.15s',
-                      }}
-                    >
-                      <div style={{ fontSize: '9px', color: '#2563EB', fontWeight: '600', marginBottom: '2px' }}>
-                        {issue.key} · {issue.type}
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#111827', fontWeight: '500', marginBottom: '4px' }}>
-                        {issue.title}
-                      </div>
-                      <div style={{ fontSize: '8px', color: '#666' }}>
-                        {issue.assignee} · {issue.points ? issue.points + 'pts' : '—'} · {issue.status}
-                      </div>
-                    </div>
-                  ))}
+                <div className="sec" style={{ marginTop: 10 }}>
+                  <div className="lbl">FILTER TYPE</div>
+                  <div id="type-filter">
+                    {['All', 'Epic', 'Feature', 'Story', 'Bug'].map(t => {
+                      const tc = TC[t];
+                      const active = filter === t;
+                      return (
+                        <button key={t} className="tf-btn"
+                          style={active ? { background: (tc?.color ?? '#2563EB') + '22', borderColor: tc?.color ?? '#2563EB', color: tc?.color ?? '#60A5FA' } : {}}
+                          onClick={() => setFilter(t)}>
+                          {tc ? `${tc.icon} ${t}` : t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <button
-                  onClick={handleImport}
-                  disabled={state.selected.size === 0}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: state.selected.size === 0 ? '#ccc' : '#10B981',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: state.selected.size === 0 ? 'not-allowed' : 'pointer',
-                    fontWeight: '600',
-                  }}
-                >
-                  ↗ Import {state.selected.size} selected
-                </button>
+
+                <div id="sel-bar" style={{ display: 'flex' }}>
+                  <div className="sel-l" onClick={() => {
+                    const next = new Set(selected);
+                    if (allSel) filteredIssues.forEach(i => next.delete(i.key));
+                    else filteredIssues.forEach(i => next.add(i.key));
+                    setSelected(next);
+                  }}>
+                    <div className={`gchk${allSel ? ' gchk-all' : partSel ? ' gchk-part' : ''}`}>{allSel ? '✓' : partSel ? '–' : ''}</div>
+                    <span style={{ fontSize: 9, color: '#8B949E', fontFamily: "'IBM Plex Mono',monospace" }}>{selCount} of {filteredIssues.length} selected</span>
+                  </div>
+                  <button id="imp-all" onClick={() => { issues.forEach(i => selected.add(i.key)); setSelected(new Set(issues.map(i => i.key))); handleImport(); }}>⬆ Import All</button>
+                </div>
+
+                <div id="results-wrap" style={{ display: 'flex' }}>
+                  <div id="rlist">
+                    {filteredIssues.map(issue => {
+                      const tc = TC[issue.type] ?? TC.Story;
+                      const sel = selected.has(issue.key);
+                      return (
+                        <div key={issue.key} className={`irow${sel ? ' sel' : ''}`}
+                          style={{ '--tc': tc.color, '--tcb': tc.color + '18', '--tcx': tc.color + '55' } as React.CSSProperties}
+                          onClick={() => { const n = new Set(selected); sel ? n.delete(issue.key) : n.add(issue.key); setSelected(n); }}>
+                          <div className={`ichk${sel ? ' on' : ''}`} style={{ '--tc': tc.color } as React.CSSProperties}>{sel ? '✓' : ''}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                              <span style={{ fontSize: 8, color: tc.color, fontFamily: "'IBM Plex Mono',monospace" }}>{tc.icon} {issue.type}</span>
+                              <span style={{ fontSize: 8, color: '#374151', fontFamily: "'IBM Plex Mono',monospace" }}>{issue.key}</span>
+                            </div>
+                            <div style={{ fontSize: 10, color: '#C9D1D9', lineHeight: 1.4, fontWeight: 500 }}>{issue.title}</div>
+                            <div style={{ fontSize: 8, color: '#4B5563', marginTop: 3, fontFamily: "'IBM Plex Mono',monospace" }}>
+                              {issue.assignee.split(' ')[0]} · {issue.points !== null ? issue.points + 'pts' : '—'} · {issue.priority}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button id="imp-sel" disabled={selected.size === 0} onClick={handleImport}>
+                    {selected.size > 0 ? `↗  Import ${selected.size} selected` : 'Select items to import'}
+                  </button>
+                </div>
               </>
             )}
 
-            <button
-              onClick={handleLogout}
-              style={{
-                width: '100%',
-                padding: '8px',
-                background: '#f5f5f5',
-                color: '#666',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                marginTop: '16px',
-              }}
-            >
-              Logout
-            </button>
+            {issues.length === 0 && !loading && (
+              <div id="idle">
+                <div style={{ fontSize: 32, opacity: .15 }}>⬡</div>
+                <div style={{ fontSize: 10, fontFamily: "'IBM Plex Mono',monospace", textAlign: 'center', lineHeight: 1.7, color: '#2D3148' }}>Run a JQL query<br />to get started</div>
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Canvas */}
-      <div style={{ flex: 1, background: '#f9fafb', padding: '20px', overflowY: 'auto' }}>
-        {state.imported.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#999', paddingTop: '100px' }}>
-            <div style={{ fontSize: '40px', marginBottom: '20px' }}>⬡</div>
-            Import issues to see them here
+      {/* ══ CANVAS ══ */}
+      <div id="canvas-wrap">
+        <div id="cbar">
+          <div className="cbar-l">
+            <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: "'IBM Plex Mono',monospace" }}>FigJam Canvas</span>
+            {imported.length > 0 && <span className="bdg-g" style={{ display: 'inline' }}>{imported.length} cards placed</span>}
+            {diffCount > 0 && <span className="bdg-y" style={{ display: 'inline' }}>⚡ {diffCount} updated</span>}
+          </div>
+          <div className="cbar-r">
+            <span className="chint">{imported.length === 0 ? 'Execute JQL →' : '▼ expand · tap to edit · ↻ sync'}</span>
+            {imported.length > 0 && (
+              <>
+                <div id="size-sel" style={{ display: 'flex' }}>
+                  {['S', 'M', 'L'].map(sz => (
+                    <button key={sz} className={`sz-btn${cardSize === sz ? ' on' : ''}`} onClick={() => setCardSize(sz)}>{sz}</button>
+                  ))}
+                </div>
+                <button id="cfg-btn" style={{ display: 'inline' }} onClick={() => setCfgOpen(true)}>⚙ Fields</button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {imported.length === 0 ? (
+          <div id="cempty">
+            <div style={{ fontSize: 40, opacity: .15 }}>⬡</div>
+            <div style={{ fontSize: 11, color: '#C4C9D4', fontFamily: "'IBM Plex Mono',monospace" }}>Canvas is empty</div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {state.imported.map(issue => (
-              <Card
-                key={issue.key}
-                issue={issue}
-                diffs={state.diffs[issue.key] || {}}
-                onSync={handleSync}
-                onEdit={handleEdit}
-              />
-            ))}
+          <div id="ccontent" data-size={cardSize}>
+            {groups.map(g => {
+              const tc = TC[g.type];
+              return (
+                <div key={g.type} className="grp">
+                  <div className="grp-head">
+                    <div style={{ height: 1, width: 12, background: tc.color + '88' }} />
+                    <div className="grp-title" style={{ color: tc.color }}>{tc.icon} {g.type.toUpperCase()}S</div>
+                    <div className="grp-count" style={{ background: tc.color + '18', border: `1px solid ${tc.color}44`, color: tc.color }}>{g.items.length}</div>
+                    <div style={{ flex: 1, height: 1, background: tc.color + '22' }} />
+                  </div>
+                  <div className="cards-row">
+                    {g.items.map(issue => (
+                      <Card key={issue.key} issue={issue} diffs={diffs[issue.key] ?? {}}
+                        jiraInstance={jiraInstance} onEdit={setEditingIssue}
+                        onSync={handleSync} syncedAt={syncedAt[issue.key] ?? null}
+                        syncing={!!syncing[issue.key]} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 9, color: '#9CA3AF', fontFamily: "'IBM Plex Mono',monospace", flexWrap: 'wrap', marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 10, height: 10, background: '#FEF08A', border: '1px solid #EAB308', borderRadius: 2 }} />
+                Yellow = changed since last sync
+              </div>
+              <div>· ▼ expand card for details · tap card to edit</div>
+            </div>
           </div>
         )}
       </div>
 
-      <Drawer
-        issue={editingIssue}
-        onClose={() => setEditingIssue(null)}
-        onSave={handleSaveEdit}
-      />
+      {/* ══ MOBILE TABS ══ */}
+      <div id="tabbar">
+        <button className={`tabbtn${mobileTab === 'panel' ? ' on' : ''}`} onClick={() => setMobileTab('panel')}>
+          <span style={{ fontSize: 18 }}>🔌</span><span>Plugin</span>
+        </button>
+        <button className={`tabbtn${mobileTab === 'canvas' ? ' on' : ''}`} onClick={() => setMobileTab('canvas')}>
+          <span style={{ fontSize: 18 }}>🗂️</span><span>Canvas</span>
+          {imported.length > 0 && <span id="tbadge" style={{ display: 'inline' }}>{imported.length}</span>}
+        </button>
+      </div>
+
+      {/* ══ FIELD CONFIG ══ */}
+      {cfgOpen && (
+        <>
+          <div className="overlay open" onClick={() => setCfgOpen(false)} />
+          <div className="bsheet" style={{ display: 'block' }}>
+            <div className="bhandle" />
+            <div className="bheader">
+              <div className="btitle">⚙️ Visible Card Fields</div>
+              <button className="xbtn" onClick={() => setCfgOpen(false)}>✕</button>
+            </div>
+            <div style={{ padding: '4px 20px', fontSize: 9, color: '#4B5563', fontFamily: "'IBM Plex Mono',monospace", letterSpacing: '.1em' }}>SHOWN IN COMPACT + EXPANDED VIEW</div>
+            <div style={{ padding: '8px 20px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {FIELD_DEFS.map(f => {
+                const on = visFields.has(f.k);
+                return (
+                  <div key={f.k} className={`tog-row${on ? ' on' : ''}`} onClick={() => {
+                    const n = new Set(visFields);
+                    on ? n.delete(f.k) : n.add(f.k);
+                    setVisFields(n);
+                  }}>
+                    <span className="tog-lbl">{f.label}</span>
+                    <div className={`tog-track${on ? ' on' : ''}`}><div className="tog-thumb" /></div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: '12px 20px 20px' }}>
+              <button className="sbtn" style={{ width: '100%' }} onClick={() => setCfgOpen(false)}>Apply to All Cards</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ══ EDIT DRAWER ══ */}
+      <Drawer issue={editingIssue} jiraInstance={jiraInstance} visFields={visFields}
+        onClose={() => setEditingIssue(null)} onSave={handleSaveEdit} />
     </div>
   );
 };
