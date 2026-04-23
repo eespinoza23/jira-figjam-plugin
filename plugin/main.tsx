@@ -64,7 +64,7 @@ const App: React.FC = () => {
         setState(prev => ({
           ...prev,
           authenticated: false,
-          error: response.status === 500 ? `Auth check failed: ${data.error || 'server error'}` : null,
+          error: `Auth failed (${response.status}): ${data.error || 'unknown error'}`,
         }));
       }
     } catch (error) {
