@@ -1,11 +1,4 @@
 {
   "buildCommand": "npm install && npm run build",
-  "devCommand": "npm run dev",
-  "outputDirectory": ".vercel/output/functions",
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "node@18",
-      "memory": 1024
-    }
-  }
+  "devCommand": "npm run dev"
 }
