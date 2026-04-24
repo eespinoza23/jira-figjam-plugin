@@ -4,20 +4,7 @@ import path from 'path';
 import fs from 'fs';
 
 export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'copy-html',
-      generateBundle() {
-        const html = fs.readFileSync('index.html', 'utf-8');
-        this.emitFile({
-          type: 'asset',
-          fileName: 'index.html',
-          source: html,
-        });
-      },
-    },
-  ],
+  plugins: [react()],
   build: {
     outDir: 'dist',
     rollupOptions: {
