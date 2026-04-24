@@ -109,6 +109,7 @@ function Card({
         <Avatar name={issue.assignee} color={tc.color} />
       </div>
 
+      {issue.sprint && <div className="jc-sprint" style={{ padding: '4px 10px', fontSize: 9 }}>{issue.sprint}</div>}
       {syncedAt && <span className="sync-ts">↻ {syncedAt}</span>}
       {hasDiff && <div className="diff-badge diff-pulse">UPDATED</div>}
 
@@ -569,6 +570,7 @@ const App: React.FC = () => {
                     {filteredIssues.map(issue => {
                       const tc = TC[issue.type] ?? TC.Story;
                       const sel = selected.has(issue.key);
+                      const issueUrl = `https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`;
                       return (
                         <div key={issue.key} className={`irow${sel ? ' sel' : ''}`}
                           style={{ '--tc': tc.color, '--tcb': tc.color + '18', '--tcx': tc.color + '55' } as React.CSSProperties}
@@ -582,9 +584,12 @@ const App: React.FC = () => {
                               <span style={{ fontSize: 8, color: '#374151', fontFamily: "'IBM Plex Mono',monospace" }}>{issue.key}</span>
                             </div>
                             <div style={{ fontSize: 10, color: '#C9D1D9', lineHeight: 1.4, fontWeight: 500 }}>{issue.title}</div>
+                            {issue.sprint && <div className="jc-sprint" style={{ marginTop: 2 }}>{issue.sprint}</div>}
                             <div style={{ fontSize: 8, color: '#4B5563', marginTop: 3, fontFamily: "'IBM Plex Mono',monospace" }}>
                               {issue.assignee.split(' ')[0]} · {issue.points !== null ? issue.points + 'pts' : '—'} · {issue.priority}
                             </div>
+                            <a className="irow-jira-link" href={issueUrl} target="_blank" rel="noreferrer"
+                              onClick={e => { e.stopPropagation(); }}>Open in Jira ↗</a>
                           </div>
                         </div>
                       );
