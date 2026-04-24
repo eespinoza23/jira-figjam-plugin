@@ -1,0 +1,11 @@
+{
+  "name": "Jira Multi-Import for FigJam",
+  "description": "Search and import Jira issues into FigJam as sticky cards with real-time sync",
+  "api": "1.0.0",
+  "ui": "https://jira-figjam-plugin.vercel.app",
+  "permissions": [
+    "figjam:read",
+    "figjam:write"
+  ],
+  "documentAccess": "owner"
+}
