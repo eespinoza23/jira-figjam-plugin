@@ -4,7 +4,7 @@
   "outputDirectory": ".vercel/output/functions",
   "functions": {
     "api/**/*.ts": {
-      "runtime": "nodejs18",
+      "runtime": "node@18",
       "memory": 1024
     }
   }
