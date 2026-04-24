@@ -7,6 +7,25 @@ interface DrawerProps {
   onSave: (issueKey: string, changes: Record<string, unknown>) => Promise<void>;
 }
 
+// Color maps from main.tsx
+const TC: Record<string, { color: string; icon: string }> = {
+  Epic:    { color: '#7C3AED', icon: '⚡' },
+  Feature: { color: '#0284C7', icon: '✨' },
+  Story:   { color: '#2563EB', icon: '📖' },
+  Bug:     { color: '#DC2626', icon: '🐛' },
+};
+const PC: Record<string, { color: string }> = {
+  Critical: { color: '#EF4444' },
+  High:     { color: '#F97316' },
+  Medium:   { color: '#EAB308' },
+  Low:      { color: '#D1D5DB' },
+};
+const SC: Record<string, { bg: string; c: string; b: string }> = {
+  'To Do':      { bg: '#F3F4F6', c: '#6B7280', b: '#E5E7EB' },
+  'In Progress':{ bg: '#EFF6FF', c: '#2563EB', b: '#BFDBFE' },
+  Done:         { bg: '#F0FDF4', c: '#16A34A', b: '#BBF7D0' },
+};
+
 export const Drawer: React.FC<DrawerProps> = ({ issue, onClose, onSave }) => {
   const [changes, setChanges] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
@@ -41,187 +60,173 @@ export const Drawer: React.FC<DrawerProps> = ({ issue, onClose, onSave }) => {
     }
   };
 
+  const typeColor = TC[issue.type]?.color || '#0284C7';
+  const priColor = PC[issue.priority]?.color || '#D1D5DB';
+  const statusStyle = SC[issue.status] || SC['To Do'];
+
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.3)',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        zIndex: 1000,
-      }}
+      className="draw-overlay"
       onClick={onClose}
     >
-      <div
-        style={{
-          background: '#fff',
-          width: '400px',
-          height: '100vh',
-          overflowY: 'auto',
-          boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <h2 style={{ marginTop: 0, marginBottom: '16px', color: '#111827' }}>
-          {issue.key}: {issue.title}
-        </h2>
+      <div className="draw-panel" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="draw-header">
+          <div className="draw-key-row">
+            {issue.typeIconUrl ? (
+              <img src={issue.typeIconUrl} width={18} height={18} alt={issue.type} />
+            ) : (
+              <span style={{ fontSize: 16 }}>{TC[issue.type]?.icon || '📝'}</span>
+            )}
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#1E293B' }}>
+              {issue.key}
+            </h2>
+          </div>
+          <button className="draw-close" onClick={onClose} title="Close">
+            ✕
+          </button>
+        </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-              Title
-            </label>
-            <input
-              type="text"
-              value={currentValue('title')}
-              onChange={e => handleChange('title', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
+        {/* Main layout: content + sidebar */}
+        <div className="draw-body">
+          {/* Left content */}
+          <div className="draw-content">
+            {/* Title */}
+            <div className="draw-section">
+              <label className="draw-label">Summary</label>
+              <input
+                type="text"
+                value={currentValue('title')}
+                onChange={e => handleChange('title', e.target.value)}
+                className="draw-title-input"
+                placeholder="Issue summary"
+              />
+            </div>
+
+            {/* Description */}
+            <div className="draw-section">
+              <label className="draw-label">Description</label>
+              <textarea
+                value={currentValue('description') || ''}
+                onChange={e => handleChange('description', e.target.value)}
+                className="draw-desc-input"
+                placeholder="Add a description..."
+                rows={4}
+              />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="draw-error">
+                {error}
+              </div>
+            )}
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-              Status
-            </label>
-            <select
-              value={currentValue('status')}
-              onChange={e => handleChange('status', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value="To Do">To Do</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Done">Done</option>
-            </select>
-          </div>
+          {/* Right sidebar */}
+          <div className="draw-sidebar">
+            {/* Status */}
+            <div className="draw-sidebar-field">
+              <div className="draw-sidebar-label">Status</div>
+              <select
+                value={currentValue('status')}
+                onChange={e => handleChange('status', e.target.value)}
+                className="draw-status-select"
+                style={{
+                  background: statusStyle.bg,
+                  color: statusStyle.c,
+                  borderColor: statusStyle.b,
+                }}
+              >
+                <option value="To Do">To Do</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Done">Done</option>
+              </select>
+            </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-              Assignee
-            </label>
-            <input
-              type="text"
-              value={currentValue('assignee')}
-              onChange={e => handleChange('assignee', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+            {/* Assignee */}
+            <div className="draw-sidebar-field">
+              <div className="draw-sidebar-label">Assignee</div>
+              <input
+                type="text"
+                value={currentValue('assignee')}
+                onChange={e => handleChange('assignee', e.target.value)}
+                className="draw-sidebar-input"
+                placeholder="Unassigned"
+              />
+            </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-              Story Points
-            </label>
-            <input
-              type="number"
-              value={currentValue('points') || ''}
-              onChange={e => handleChange('points', e.target.value ? parseInt(e.target.value) : null)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+            {/* Priority */}
+            <div className="draw-sidebar-field">
+              <div className="draw-sidebar-label">Priority</div>
+              <div className="draw-priority-row">
+                {issue.priorityIconUrl ? (
+                  <img src={issue.priorityIconUrl} width={16} height={16} alt={issue.priority} style={{ flexShrink: 0 }} />
+                ) : (
+                  <span
+                    className="draw-priority-dot"
+                    style={{ background: priColor }}
+                  />
+                )}
+                <select
+                  value={currentValue('priority')}
+                  onChange={e => handleChange('priority', e.target.value)}
+                  className="draw-sidebar-select"
+                >
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+            </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-              Priority
-            </label>
-            <select
-              value={currentValue('priority')}
-              onChange={e => handleChange('priority', e.target.value)}
-              style={{
-                width: '100%',
-                padding: '8px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-              <option value="Critical">Critical</option>
-            </select>
+            {/* Story Points */}
+            <div className="draw-sidebar-field">
+              <div className="draw-sidebar-label">Story Points</div>
+              <input
+                type="number"
+                value={currentValue('points') || ''}
+                onChange={e => handleChange('points', e.target.value ? parseInt(e.target.value) : null)}
+                className="draw-sidebar-input draw-points-input"
+                placeholder="—"
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="draw-divider" />
+
+            {/* Type */}
+            <div className="draw-sidebar-field draw-sidebar-readonly">
+              <div className="draw-sidebar-label">Type</div>
+              <div style={{ color: '#1E293B', fontSize: 13, fontWeight: 500 }}>
+                {issue.type}
+              </div>
+            </div>
+
+            {/* Created/Updated timestamps */}
+            <div className="draw-sidebar-field draw-sidebar-readonly">
+              <div className="draw-sidebar-label">Updated</div>
+              <div style={{ color: '#64748B', fontSize: 11 }}>
+                Just now
+              </div>
+            </div>
           </div>
         </div>
 
-        {error && (
-          <div
-            style={{
-              background: '#FEE2E2',
-              color: '#DC2626',
-              padding: '8px',
-              borderRadius: '4px',
-              fontSize: '12px',
-              marginBottom: '12px',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px' }}>
+        {/* Footer */}
+        <div className="draw-footer">
           <button
             onClick={onClose}
             disabled={saving}
-            style={{
-              flex: 1,
-              padding: '10px',
-              background: '#f5f5f5',
-              color: '#666',
-              border: '1px solid #ddd',
-              borderRadius: '6px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
-              fontWeight: '600',
-            }}
+            className="draw-btn draw-btn-secondary"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || Object.keys(changes).length === 0}
-            style={{
-              flex: 1,
-              padding: '10px',
-              background:
-                saving || Object.keys(changes).length === 0 ? '#ccc' : '#10B981',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: saving || Object.keys(changes).length === 0 ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
-              fontWeight: '600',
-            }}
+            className="draw-btn draw-btn-primary"
           >
             {saving ? '↻ Syncing...' : '✓ Save & Sync'}
           </button>
