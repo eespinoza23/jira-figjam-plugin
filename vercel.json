@@ -7,11 +7,5 @@
       "runtime": "nodejs18.x",
       "memory": 1024
     }
-  },
-  "env": {
-    "ATLASSIAN_CLIENT_ID": "@ATLASSIAN_CLIENT_ID",
-    "ATLASSIAN_CLIENT_SECRET": "@ATLASSIAN_CLIENT_SECRET",
-    "JIRA_INSTANCE_URL": "@JIRA_INSTANCE_URL",
-    "VERCEL_URL": "@VERCEL_URL"
   }
 }
