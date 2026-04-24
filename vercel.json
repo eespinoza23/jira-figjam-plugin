@@ -9,9 +9,9 @@
     }
   },
   "env": {
-    "ATLASSIAN_CLIENT_ID": "@atlassian_client_id",
-    "ATLASSIAN_CLIENT_SECRET": "@atlassian_client_secret",
-    "JIRA_INSTANCE_URL": "@jira_instance_url",
-    "VERCEL_URL": "@vercel_url"
+    "ATLASSIAN_CLIENT_ID": "@ATLASSIAN_CLIENT_ID",
+    "ATLASSIAN_CLIENT_SECRET": "@ATLASSIAN_CLIENT_SECRET",
+    "JIRA_INSTANCE_URL": "@JIRA_INSTANCE_URL",
+    "VERCEL_URL": "@VERCEL_URL"
   }
 }
