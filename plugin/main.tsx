@@ -141,7 +141,18 @@ function Card({
             ))}
           </div>
           {issue.sprint && <div className="detrow"><div className="detlbl">SPRINT</div><div className="detval">{issue.sprint}</div></div>}
-          {issue.epicLink && <div className="detrow"><div className="detlbl">EPIC</div><div className="detval" style={{ color: '#7C3AED' }}>⚡ {issue.epicLink}</div></div>}
+          {issue.epicLink && (
+            <div className="detrow">
+              <div className="detlbl">EPIC</div>
+              <div className="detval">
+                <a href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.epicLink}`}
+                   target="_blank" rel="noreferrer"
+                   style={{ color: '#7C3AED', textDecoration: 'none', cursor: 'pointer' }}>
+                  ⚡ {issue.epicLink}
+                </a>
+              </div>
+            </div>
+          )}
           {issue.components?.length > 0 && (
             <div className="detpills">{issue.components.map(c => <span key={c} className="comp-pill">{c}</span>)}</div>
           )}
@@ -309,7 +320,11 @@ function Drawer({
                 {visFields.has('epicLink') && issue.epicLink && (
                   <div className="dfield">
                     <div className="dlbl">EPIC LINK</div>
-                    <div className="dinp" style={{ color: '#7C3AED', cursor: 'default', userSelect: 'text' }}>{issue.epicLink}</div>
+                    <a href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.epicLink}`}
+                       target="_blank" rel="noreferrer"
+                       className="dinp" style={{ color: '#7C3AED', cursor: 'pointer', textDecoration: 'none', display: 'block' }}>
+                      {issue.epicLink}
+                    </a>
                   </div>
                 )}
                 {visFields.has('updated') && (
