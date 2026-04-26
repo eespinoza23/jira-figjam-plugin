@@ -81,6 +81,19 @@
   <div id="success-msg" class="success" style="display: none;"></div>
 
   <script>
+    async function checkAuthStatus() {
+      try {
+        const res = await fetch('https://jira-figjam-plugin.vercel.app/api/jira-status', { credentials: 'include' });
+        const data = await res.json();
+        if (data.authenticated) {
+          showSuccess(`Connected to ${data.instance}`);
+          showSection('search-section');
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err);
+      }
+    }
+
     function showSection(name) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(name).classList.add('active');
@@ -168,6 +181,8 @@
     function addToCanvas(issue) {
       parent.postMessage({ pluginMessage: { type: 'add-to-canvas', issue } }, '*');
     }
+
+    document.addEventListener('DOMContentLoaded', checkAuthStatus);
   </script>
 </body>
 </html>
