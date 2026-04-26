@@ -4,10 +4,5 @@
   "editorType": ["figjam"],
   "main": "https://jira-figjam-plugin.vercel.app/code.js",
   "ui": "https://jira-figjam-plugin.vercel.app/ui.html",
-  "documentAccess": "dynamic-page",
-  "networkAccess": {
-    "allowedDomains": ["https://jira-figjam-plugin.vercel.app"],
-    "devAllowedDomains": ["https://jira-figjam-plugin.vercel.app"],
-    "reasoning": "Connects to Jira via backend OAuth proxy"
-  }
+  "documentAccess": "dynamic-page"
 }
