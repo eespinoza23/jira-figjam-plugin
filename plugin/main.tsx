@@ -413,7 +413,7 @@ const App: React.FC = () => {
       const r = await fetch(`/api/jira-issue?issueKey=${encodeURIComponent(epicKey)}`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
-        setEpicTitles(p => ({ ...p, [epicKey]: data.parentTitle || data.summary || null }));
+        setEpicTitles(p => ({ ...p, [epicKey]: data.title || null }));
       }
     } catch (e) {
       console.error(`Failed to fetch epic title for ${epicKey}:`, e);

@@ -25,38 +25,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issues/${issueKey}`,
       {
         params: {
-          fields: 'summary,parent',
+          fields: 'summary',
         },
         headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
     const issue = response.data;
-    const parentKey = issue.fields?.parent?.key;
-    let parentTitle: string | null = null;
-
-    // If this issue has a parent, fetch the parent's summary
-    if (parentKey) {
-      try {
-        const parentResponse = await axios.get(
-          `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issues/${parentKey}`,
-          {
-            params: { fields: 'summary' },
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }
-        );
-        parentTitle = parentResponse.data.fields?.summary || null;
-      } catch (err) {
-        // If parent fetch fails, continue with just the key
-        console.error(`Failed to fetch parent ${parentKey}:`, err);
-      }
-    }
+    const title = issue.fields?.summary || null;
 
     res.json({
       key: issue.key,
-      summary: issue.fields?.summary || null,
-      parentKey,
-      parentTitle,
+      title,
     });
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
