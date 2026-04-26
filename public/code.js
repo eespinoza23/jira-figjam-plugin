@@ -4,7 +4,8 @@ figma.ui.onmessage = async (msg) => {
   // Session management
   if (msg.type === 'check-auth') {
     try {
-      const session = await figma.clientStorage.getAsync('session');
+      let session = null;
+      try { session = await figma.clientStorage.getAsync('session'); } catch (_) {}
       const response = await fetch('https://jira-figjam-plugin.vercel.app/api/jira-connect', {
         method: 'GET',
         credentials: 'include',
@@ -21,12 +22,12 @@ figma.ui.onmessage = async (msg) => {
   }
 
   if (msg.type === 'save-session') {
-    await figma.clientStorage.setAsync('session', { instance: msg.instance, authenticated: true });
+    try { await figma.clientStorage.setAsync('session', { instance: msg.instance, authenticated: true }); } catch (_) {}
     figma.ui.postMessage({ type: 'session-saved' });
   }
 
   if (msg.type === 'clear-session') {
-    await figma.clientStorage.removeAsync('session');
+    try { await figma.clientStorage.removeAsync('session'); } catch (_) {}
     figma.ui.postMessage({ type: 'session-cleared' });
   }
 
@@ -47,7 +48,7 @@ figma.ui.onmessage = async (msg) => {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Code verification failed (status ' + response.status + ')');
-      await figma.clientStorage.setAsync('session', { instance: data.instance, authenticated: true });
+      try { await figma.clientStorage.setAsync('session', { instance: data.instance, authenticated: true }); } catch (_) {}
       figma.ui.postMessage({ type: 'authenticated', instance: data.instance });
     } catch (err) {
       figma.ui.postMessage({ type: 'auth-error', error: err.message || String(err) });
