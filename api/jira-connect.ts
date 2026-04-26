@@ -44,5 +44,5 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     `jira_instance=${payload.i}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=2592000`,
   ]);
 
-  res.json({ ok: true, instance: payload.i });
+  res.json({ ok: true, instance: payload.i, access_token: payload.a, refresh_token: payload.r });
 }

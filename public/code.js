@@ -1,5 +1,7 @@
 figma.showUI(__html__, { width: 360, height: 600 });
 
+let _accessToken = null;
+
 figma.ui.onmessage = async (msg) => {
   // Session management
   if (msg.type === 'check-auth') {
@@ -48,6 +50,7 @@ figma.ui.onmessage = async (msg) => {
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Code verification failed (status ' + response.status + ')');
+      _accessToken = data.access_token;
       try { await figma.clientStorage.setAsync('session', { instance: data.instance, authenticated: true }); } catch (_) {}
       figma.ui.postMessage({ type: 'authenticated', instance: data.instance });
     } catch (err) {
@@ -58,10 +61,12 @@ figma.ui.onmessage = async (msg) => {
   // Search
   if (msg.type === 'search-jira') {
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (_accessToken) headers['Authorization'] = 'Bearer ' + _accessToken;
       const response = await fetch('https://jira-figjam-plugin.vercel.app/api/jira-search', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ jql: msg.jql }),
       });
 

@@ -23,7 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { jql } = req.body;
-  let accessToken = req.cookies.access_token;
+  const authHeader = req.headers.authorization;
+  let accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
   const refreshToken = req.cookies.refresh_token;
 
   if (!accessToken) {
@@ -50,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     res.setHeader('Set-Cookie', `cloud_id=${cloudId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=86400`);
-    res.json(response.data.issues);
+    res.json({ issues: response.data.issues });
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 401 && refreshToken) {
       const newTokenData = await refreshAccessToken(refreshToken);
@@ -75,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               headers: { Authorization: `Bearer ${accessToken}` },
             }
           );
-          return res.json(retryResponse.data.issues);
+          return res.json({ issues: retryResponse.data.issues });
         } catch (retryError) {
           console.error('Retry after token refresh failed:', retryError);
         }
