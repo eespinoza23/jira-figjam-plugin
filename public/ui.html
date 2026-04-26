@@ -94,6 +94,12 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
     <button id="auth-btn" class="auth-btn" onclick="startAuth()">🔗 Connect to Jira</button>
   </div>
 
+  <div class="sec" id="code-sec">
+    <div class="lbl">PASTE CODE FROM BROWSER</div>
+    <textarea id="verify-code-input" rows="3" placeholder="Paste the code from the browser here..." style="width:100%;background:#0D1117;border:1px solid #374151;border-radius:6px;color:#93C5FD;font-size:10px;font-family:monospace;padding:8px;resize:none;box-sizing:border-box;margin-bottom:8px"></textarea>
+    <button class="auth-btn" onclick="submitCode()" style="background:linear-gradient(135deg,#059669,#10B981)">✓ Submit Code</button>
+  </div>
+
   <div class="sec">
     <div class="lbl">JQL QUERY</div>
     <textarea id="jql" rows="3">status != Done ORDER BY updated DESC</textarea>
@@ -220,6 +226,11 @@ function startAuth() {
   inst = inst.replace(/^https?:\/\//, '').replace(/\/$/, '');
   if (!inst) {alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return;}
   window.open(`https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(inst)}`);
+}
+function submitCode() {
+  const code = document.getElementById('verify-code-input').value.trim();
+  if (!code) {alert('Paste the code from the browser first.'); return;}
+  send('verify-code', {code});
 }
 function execJQL() {
   const jql = document.getElementById("jql").value.trim();
