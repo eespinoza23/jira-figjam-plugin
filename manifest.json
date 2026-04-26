@@ -4,9 +4,5 @@
   "editorType": ["figjam"],
   "main": "https://jira-figjam-plugin.vercel.app/code.js",
   "ui": "https://jira-figjam-plugin.vercel.app/ui.html",
-  "permissions": [
-    "content:read",
-    "content:write"
-  ],
   "documentAccess": "dynamic-page"
 }
