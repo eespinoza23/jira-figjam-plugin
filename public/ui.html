@@ -259,7 +259,8 @@ function doSync(key) {send('sync-issue', {key});}
 function editCard(key) {alert('Edit drawer: Phase 2.1');}
 
 window.addEventListener('message', (evt) => {
-  const msg = evt.data;
+  const msg = evt.data.pluginMessage || evt.data;
+  if (!msg || !msg.type) return;
 
   if (msg.type === 'ready') {checkAuth();}
 
@@ -276,6 +277,23 @@ window.addEventListener('message', (evt) => {
     }
   }
 
+  if (msg.type === 'authenticated') {
+    authenticated = true;
+    instance = msg.instance;
+    document.getElementById("auth-btn").textContent = "✓ Connected";
+    document.getElementById("auth-btn").disabled = true;
+    document.getElementById("code-sec").style.display = "none";
+    document.getElementById("jql").style.display = "block";
+    document.getElementById("exec-btn").style.display = "flex";
+    document.getElementById("conn-status").style.display = "flex";
+    document.getElementById("inst-name").textContent = instance && instance.replace(".atlassian.net", "") || "";
+    send('save-session', {instance});
+  }
+
+  if (msg.type === 'auth-error') {
+    alert('Auth failed: ' + msg.error);
+  }
+
   if (msg.type === 'search-results') {
     const btn = document.getElementById("exec-btn");
     btn.disabled = false;
@@ -286,9 +304,9 @@ window.addEventListener('message', (evt) => {
       type: issue.fields && issue.fields.issuetype && issue.fields.issuetype.name || "Story",
       status: issue.fields && issue.fields.status && issue.fields.status.name || "To Do",
       priority: issue.fields && issue.fields.priority && issue.fields.priority.name || "Medium",
-      summary: issue.fields && issue.fields.summary || "",
+      summary: (issue.fields && issue.fields.summary) || "",
       assignee: issue.fields && issue.fields.assignee && issue.fields.assignee.displayName || "Unassigned",
-      points: issue.fields && issue.fields.customfield_10016 || issue.fields && issue.fields.story_points
+      points: (issue.fields && issue.fields.customfield_10016) || (issue.fields && issue.fields.story_points)
     }));
 
     document.getElementById("idle").style.display = "none";
