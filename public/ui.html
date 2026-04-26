@@ -139,9 +139,17 @@ const PC={Critical:"#EF4444",High:"#F97316",Medium:"#EAB308",Low:"#D1D5DB"};
 const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#2563EB"},Done:{bg:"#F0FDF4",c:"#16A34A"}};
 
 let sel=new Set(), imported=[], instance=null, authenticated=false;
+let _token = null;
+const API = 'https://jira-figjam-plugin.vercel.app';
 
 function send(type, data={}) {
   window.parent.postMessage({pluginMessage: {type, ...data}}, '*');
+}
+
+function apiHeaders() {
+  const h = {'Content-Type': 'application/json'};
+  if (_token) h['Authorization'] = 'Bearer ' + _token;
+  return h;
 }
 
 function ini(n) {
@@ -220,25 +228,94 @@ function renderList() {
   document.getElementById("imp-sel").disabled = sel.size === 0;
 }
 
-function checkAuth() {send('check-auth');}
+function checkAuth() {
+  fetch(API + '/api/jira-connect', {method:'GET', credentials:'include'})
+    .then(r => r.json())
+    .then(d => {
+      if (d.authenticated) {
+        authenticated = true;
+        instance = d.instance;
+        showConnected();
+      }
+    })
+    .catch(() => {});
+  send('get-session');
+}
 function startAuth() {
   let inst = document.getElementById('instance-input').value.trim();
   inst = inst.replace(/^https?:\/\//, '').replace(/\/$/, '');
   if (!inst) {alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return;}
-  window.open(`https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(inst)}`);
+  window.open(API + '/api/jira-auth?instance=' + encodeURIComponent(inst));
 }
 function submitCode() {
   const code = document.getElementById('verify-code-input').value.trim();
   if (!code) {alert('Paste the code from the browser first.'); return;}
-  send('verify-code', {code});
+  fetch(API + '/api/jira-connect', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({code})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (!d.ok) throw new Error(d.error || 'Failed');
+    _token = d.access_token;
+    instance = d.instance;
+    authenticated = true;
+    send('save-session', {instance});
+    showConnected();
+  })
+  .catch(e => alert('Auth failed: ' + e.message));
+}
+function showConnected() {
+  document.getElementById('auth-btn').textContent = '✓ Connected';
+  document.getElementById('auth-btn').disabled = true;
+  document.getElementById('code-sec').style.display = 'none';
+  document.getElementById('jql').style.display = 'block';
+  document.getElementById('exec-btn').style.display = 'flex';
+  document.getElementById('conn-status').style.display = 'flex';
+  document.getElementById('inst-name').textContent = (instance || '').replace('.atlassian.net','');
 }
 function execJQL() {
   const jql = document.getElementById("jql").value.trim();
   if (!jql) return;
   const btn = document.getElementById("exec-btn");
   btn.disabled = true;
-  btn.innerHTML = `<span class="spin">⟳</span> Searching…`;
-  send('search-jira', {jql});
+  btn.innerHTML = '<span class="spin">⟳</span> Searching…';
+  fetch(API + '/api/jira-search', {
+    method: 'POST',
+    credentials: 'include',
+    headers: apiHeaders(),
+    body: JSON.stringify({jql})
+  })
+  .then(r => r.json())
+  .then(d => {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Execute JQL';
+    if (d.error) {alert('Search failed: ' + d.error); return;}
+    const issues = d.issues || d || [];
+    imported = issues.map(issue => ({
+      key: issue.key,
+      type: issue.fields && issue.fields.issuetype && issue.fields.issuetype.name || "Story",
+      status: issue.fields && issue.fields.status && issue.fields.status.name || "To Do",
+      priority: issue.fields && issue.fields.priority && issue.fields.priority.name || "Medium",
+      summary: (issue.fields && issue.fields.summary) || "",
+      assignee: issue.fields && issue.fields.assignee && issue.fields.assignee.displayName || "Unassigned",
+      points: (issue.fields && issue.fields.customfield_10016) || (issue.fields && issue.fields.story_points)
+    }));
+    document.getElementById("idle").style.display = "none";
+    document.getElementById("sel-bar").style.display = "flex";
+    document.getElementById("results-wrap").style.display = "flex";
+    document.getElementById("imp-sel").style.display = "block";
+    sel = new Set();
+    renderList();
+    renderCanvas();
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Execute JQL';
+    alert('Search failed: ' + e.message);
+  });
 }
 
 function toggleIssue(k) {sel.has(k) ? sel.delete(k) : sel.add(k); renderList();}
@@ -255,7 +332,28 @@ function importSel() {
   });
 }
 
-function doSync(key) {send('sync-issue', {key});}
+function doSync(key) {
+  fetch(API + '/api/jira-search', {
+    method: 'POST',
+    credentials: 'include',
+    headers: apiHeaders(),
+    body: JSON.stringify({jql: 'key = ' + key})
+  })
+  .then(r => r.json())
+  .then(d => {
+    const fresh = d.issues && d.issues[0];
+    if (!fresh) return;
+    imported = imported.map(i => i.key === key ? {
+      ...i,
+      status: fresh.fields && fresh.fields.status && fresh.fields.status.name || i.status,
+      summary: fresh.fields && fresh.fields.summary || i.summary,
+      assignee: fresh.fields && fresh.fields.assignee && fresh.fields.assignee.displayName || i.assignee,
+      points: fresh.fields && fresh.fields.customfield_10016 || i.points
+    } : i);
+    renderCanvas();
+  })
+  .catch(() => {});
+}
 function editCard(key) {alert('Edit drawer: Phase 2.1');}
 
 window.addEventListener('message', (evt) => {
@@ -264,78 +362,8 @@ window.addEventListener('message', (evt) => {
 
   if (msg.type === 'ready') {checkAuth();}
 
-  if (msg.type === 'auth-checked') {
-    authenticated = msg.authenticated;
+  if (msg.type === 'session-data' && msg.instance && !authenticated) {
     instance = msg.instance;
-    if (authenticated && instance) {
-      document.getElementById("auth-btn").textContent = "✓ Connected";
-      document.getElementById("auth-btn").disabled = true;
-      document.getElementById("jql").style.display = "block";
-      document.getElementById("exec-btn").style.display = "flex";
-      document.getElementById("conn-status").style.display = "flex";
-      document.getElementById("inst-name").textContent = instance.replace(".atlassian.net", "");
-    }
-  }
-
-  if (msg.type === 'authenticated') {
-    authenticated = true;
-    instance = msg.instance;
-    document.getElementById("auth-btn").textContent = "✓ Connected";
-    document.getElementById("auth-btn").disabled = true;
-    document.getElementById("code-sec").style.display = "none";
-    document.getElementById("jql").style.display = "block";
-    document.getElementById("exec-btn").style.display = "flex";
-    document.getElementById("conn-status").style.display = "flex";
-    document.getElementById("inst-name").textContent = instance && instance.replace(".atlassian.net", "") || "";
-    send('save-session', {instance});
-  }
-
-  if (msg.type === 'auth-error') {
-    alert('Auth failed: ' + msg.error);
-  }
-
-  if (msg.type === 'search-results') {
-    const btn = document.getElementById("exec-btn");
-    btn.disabled = false;
-    btn.innerHTML = "▶ Execute JQL";
-
-    imported = (msg.issues || []).map(issue => ({
-      key: issue.key,
-      type: issue.fields && issue.fields.issuetype && issue.fields.issuetype.name || "Story",
-      status: issue.fields && issue.fields.status && issue.fields.status.name || "To Do",
-      priority: issue.fields && issue.fields.priority && issue.fields.priority.name || "Medium",
-      summary: (issue.fields && issue.fields.summary) || "",
-      assignee: issue.fields && issue.fields.assignee && issue.fields.assignee.displayName || "Unassigned",
-      points: (issue.fields && issue.fields.customfield_10016) || (issue.fields && issue.fields.story_points)
-    }));
-
-    document.getElementById("idle").style.display = "none";
-    document.getElementById("sel-bar").style.display = "flex";
-    document.getElementById("results-wrap").style.display = "flex";
-    document.getElementById("imp-sel").style.display = "block";
-    sel = new Set();
-    renderList();
-    renderCanvas();
-  }
-
-  if (msg.type === 'search-error') {
-    const btn = document.getElementById("exec-btn");
-    btn.disabled = false;
-    btn.innerHTML = "▶ Execute JQL";
-    alert('Search failed: ' + msg.error);
-  }
-
-  if (msg.type === 'sync-result') {
-    if (msg.issue) {
-      imported = imported.map(i => i.key === msg.key ? {
-        ...i,
-        status: msg.issue.fields && msg.issue.fields.status && msg.issue.fields.status.name || i.status,
-        summary: msg.issue.fields && msg.issue.fields.summary || i.summary,
-        assignee: msg.issue.fields && msg.issue.fields.assignee && msg.issue.fields.assignee.displayName || i.assignee,
-        points: msg.issue.fields && msg.issue.fields.customfield_10016 || i.points
-      } : i);
-      renderCanvas();
-    }
   }
 });
 
