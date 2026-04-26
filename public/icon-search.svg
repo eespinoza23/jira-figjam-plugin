@@ -1,0 +1,27 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="256" height="256" fill="#ffffff" rx="16"/>
+  <rect width="256" height="256" fill="none" stroke="#ebecf0" stroke-width="2" rx="16"/>
+
+  <!-- Magnifying glass circle -->
+  <circle cx="100" cy="100" r="40" fill="none" stroke="#0052CC" stroke-width="4"/>
+
+  <!-- Magnifying glass handle -->
+  <line x1="133" y1="133" x2="175" y2="175" stroke="#0052CC" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- 3x3 Grid inside magnifying glass -->
+  <!-- Row 1 -->
+  <rect x="75" y="75" width="15" height="15" fill="#1D7AFC" rx="2"/>
+  <rect x="95" y="75" width="15" height="15" fill="#1D7AFC" rx="2"/>
+  <rect x="115" y="75" width="15" height="15" fill="#1D7AFC" rx="2"/>
+
+  <!-- Row 2 -->
+  <rect x="75" y="95" width="15" height="15" fill="#1D7AFC" rx="2"/>
+  <rect x="95" y="95" width="15" height="15" fill="#1D7AFC" rx="2"/>
+  <rect x="115" y="95" width="15" height="15" fill="#1D7AFC" rx="2"/>
+
+  <!-- Row 3 -->
+  <rect x="75" y="115" width="15" height="15" fill="#1D7AFC" rx="2"/>
+  <rect x="95" y="115" width="15" height="15" fill="#1D7AFC" rx="2"/>
+  <rect x="115" y="115" width="15" height="15" fill="#1D7AFC" rx="2"/>
+</svg>

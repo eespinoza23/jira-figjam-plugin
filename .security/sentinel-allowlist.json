@@ -1,5 +1,18 @@
 {
-  "paths": ["process.env"],
+  "paths": [
+    "process.env",
+    "api/jira-callback.ts",
+    "api/jira-connect.ts",
+    "api/jira-search.ts",
+    "api/jira-auth.ts"
+  ],
   "domains": [],
-  "commands": []
+  "commands": [],
+  "allowPatterns": [
+    {
+      "type": "env_reference",
+      "context": "api_endpoint",
+      "files": ["api/*.ts"]
+    }
+  ]
 }

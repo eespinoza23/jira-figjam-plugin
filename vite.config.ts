@@ -17,11 +17,10 @@ function copyManifestPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), copyManifestPlugin()],
+  plugins: [copyManifestPlugin()],
   build: {
     outDir: 'dist',
     rollupOptions: {
-      input: path.resolve(__dirname, 'index.html'),
       output: {
         entryFileNames: '[name].js',
         chunkFileNames: '[name].js',

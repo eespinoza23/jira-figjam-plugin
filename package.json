@@ -2,6 +2,9 @@
   "name": "jira-figjam-plugin",
   "version": "0.2.1",
   "description": "Jira Multi-Import plugin for FigJam with Vercel serverless backend",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "concurrently \"vercel dev\" \"npm run plugin:dev\"",
     "dev:vercel": "vercel dev",

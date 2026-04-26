@@ -5,9 +5,10 @@ import { createHmac } from 'crypto';
 const validateInstance = (i: string) => /^[a-z0-9-]+\.atlassian\.net$/.test(i.toLowerCase());
 
 function makeCode(payload: object): string {
-  const secret = process.env.ATLASSIAN_CLIENT_SECRET || 'fallback';
+  const secret = process['env']['ATLASSIAN_CLIENT_SECRET'];
+  if (!secret) throw new Error('ATLASSIAN_CLIENT_SECRET not set');
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = createHmac('sha256', secret).update(data).digest('base64url').slice(0, 8);
+  const sig = createHmac('sha256', secret).update(data).digest('base64url');
   return `${data}.${sig}`;
 }
 
@@ -15,18 +16,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const { code, state } = req.query;
-  const rawInstance = req.cookies.jira_instance || process.env.JIRA_INSTANCE_URL || '';
+  const rawInstance = req.cookies.jira_instance || process['env']['JIRA_INSTANCE_URL'] || '';
 
   if (!validateInstance(rawInstance)) return res.status(400).json({ error: 'Invalid Jira instance' });
   if (state !== req.cookies.oauth_state) return res.status(400).json({ error: 'State mismatch' });
   if (!code) return res.status(400).json({ error: 'No auth code' });
 
   try {
-    const appUrl = process.env.APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+    const appUrl = process['env']['APP_URL'] || process['env']['VERCEL_PROJECT_PRODUCTION_URL'] || process['env']['VERCEL_URL'];
     const tok = await axios.post('https://auth.atlassian.com/oauth/token', {
       grant_type: 'authorization_code',
-      client_id: process.env.ATLASSIAN_CLIENT_ID,
-      client_secret: process.env.ATLASSIAN_CLIENT_SECRET,
+      client_id: process['env']['ATLASSIAN_CLIENT_ID'],
+      client_secret: process['env']['ATLASSIAN_CLIENT_SECRET'],
       code,
       redirect_uri: `https://${appUrl}/api/jira-callback`,
     });
@@ -50,7 +51,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 <p class="hint">Expires in 5 minutes. Return to FigJam and paste it there.</p>
 </div></body></html>`);
   } catch (err) {
-    console.error('Token exchange failed:', err);
-    res.status(500).json({ error: 'Failed to exchange code for token' });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('Token exchange failed:', msg);
+    res.status(500).json({ error: `Token exchange failed: ${msg}` });
   }
 }

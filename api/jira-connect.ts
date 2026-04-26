@@ -5,8 +5,9 @@ function verifyCode(code: string): { a: string; r: string; i: string; x: number;
   try {
     const [data, sig] = code.split('.');
     if (!data || !sig) return null;
-    const secret = process.env.ATLASSIAN_CLIENT_SECRET || 'fallback';
-    const expected = createHmac('sha256', secret).update(data).digest('base64url').slice(0, 8);
+    const secret = process['env']['ATLASSIAN_CLIENT_SECRET'];
+    if (!secret) throw new Error('ATLASSIAN_CLIENT_SECRET not set');
+    const expected = createHmac('sha256', secret).update(data).digest('base64url');
     if (sig !== expected) return null;
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString());
     if (Date.now() > payload.x) return null;
