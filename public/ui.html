@@ -89,6 +89,8 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
   </div>
 
   <div class="sec">
+    <div class="lbl">JIRA INSTANCE</div>
+    <input id="instance-input" type="text" placeholder="eespinoza.atlassian.net" style="width:100%;padding:8px;border:1px solid #374151;border-radius:6px;font-family:monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;background:#0D1117;color:#93C5FD">
     <button id="auth-btn" class="auth-btn" onclick="startAuth()">🔗 Connect to Jira</button>
   </div>
 
@@ -202,7 +204,7 @@ function renderList() {
       <div class="ichk${s?" on":""}">${s?"✓":""}</div>
       <div style="flex:1">
         <div style="font-size:8px;color:${tc.c};font-family:'IBM Plex Mono',monospace">${tc.i} ${issue.type}</div>
-        <div style="font-size:10px;color:#C9D1D9;font-weight:500">${issue.summary?.substring(0,50)||""}</div>
+        <div style="font-size:10px;color:#C9D1D9;font-weight:500">${issue.summary && issue.summary.substring(0,50)||""}</div>
       </div>
     </div>`;
   }).join("");
@@ -213,7 +215,11 @@ function renderList() {
 }
 
 function checkAuth() {send('check-auth');}
-function startAuth() {window.open('https://jira-figjam-plugin.vercel.app/api/jira-auth');}
+function startAuth() {
+  const inst = document.getElementById('instance-input').value.trim();
+  if (!inst) {alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return;}
+  window.open(`https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(inst)}`);
+}
 function execJQL() {
   const jql = document.getElementById("jql").value.trim();
   if (!jql) return;
@@ -265,12 +271,12 @@ window.addEventListener('message', (evt) => {
 
     imported = (msg.issues || []).map(issue => ({
       key: issue.key,
-      type: issue.fields?.issuetype?.name || "Story",
-      status: issue.fields?.status?.name || "To Do",
-      priority: issue.fields?.priority?.name || "Medium",
-      summary: issue.fields?.summary || "",
-      assignee: issue.fields?.assignee?.displayName || "Unassigned",
-      points: issue.fields?.customfield_10016 || issue.fields?.story_points
+      type: issue.fields && issue.fields.issuetype && issue.fields.issuetype.name || "Story",
+      status: issue.fields && issue.fields.status && issue.fields.status.name || "To Do",
+      priority: issue.fields && issue.fields.priority && issue.fields.priority.name || "Medium",
+      summary: issue.fields && issue.fields.summary || "",
+      assignee: issue.fields && issue.fields.assignee && issue.fields.assignee.displayName || "Unassigned",
+      points: issue.fields && issue.fields.customfield_10016 || issue.fields && issue.fields.story_points
     }));
 
     document.getElementById("idle").style.display = "none";
@@ -286,10 +292,10 @@ window.addEventListener('message', (evt) => {
     if (msg.issue) {
       imported = imported.map(i => i.key === msg.key ? {
         ...i,
-        status: msg.issue.fields?.status?.name || i.status,
-        summary: msg.issue.fields?.summary || i.summary,
-        assignee: msg.issue.fields?.assignee?.displayName || i.assignee,
-        points: msg.issue.fields?.customfield_10016 || i.points
+        status: msg.issue.fields && msg.issue.fields.status && msg.issue.fields.status.name || i.status,
+        summary: msg.issue.fields && msg.issue.fields.summary || i.summary,
+        assignee: msg.issue.fields && msg.issue.fields.assignee && msg.issue.fields.assignee.displayName || i.assignee,
+        points: msg.issue.fields && msg.issue.fields.customfield_10016 || i.points
       } : i);
       renderCanvas();
     }

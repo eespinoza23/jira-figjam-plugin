@@ -13,7 +13,7 @@ figma.ui.onmessage = async (msg) => {
       figma.ui.postMessage({
         type: 'auth-checked',
         authenticated,
-        instance: session?.instance || null,
+        instance: session && session.instance || null,
       });
     } catch (err) {
       figma.ui.postMessage({ type: 'auth-checked', authenticated: false, instance: null });
@@ -84,7 +84,7 @@ figma.ui.onmessage = async (msg) => {
 
       if (!response.ok) throw new Error('Sync failed');
       const data = await response.json();
-      const issue = data.issues?.[0];
+      const issue = data.issues && data.issues[0];
       figma.ui.postMessage({ type: 'sync-result', key: msg.key, issue });
     } catch (err) {
       figma.ui.postMessage({ type: 'sync-error', key: msg.key, error: err.message });
@@ -116,7 +116,7 @@ figma.ui.onmessage = async (msg) => {
     sticky.y = msg.y || 0;
     sticky.width = 320;
     sticky.height = 180;
-    sticky.text = `${issue.key}\n${issue.fields.summary}\nAssignee: ${issue.fields.assignee?.displayName || 'Unassigned'}\nStatus: ${issue.fields.status.name}`;
+    sticky.text = `${issue.key}\n${issue.fields.summary}\nAssignee: ${issue.fields.assignee && issue.fields.assignee.displayName || 'Unassigned'}\nStatus: ${issue.fields.status.name}`;
     figma.currentPage.appendChild(sticky);
     figma.ui.postMessage({ type: 'added-to-canvas' });
   }
