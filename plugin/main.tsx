@@ -428,6 +428,8 @@ const App: React.FC = () => {
   const [editingIssue, setEditingIssue] = useState<JiraIssue | null>(null);
   const [visFields, setVisFields] = useState<Set<string>>(new Set(FIELD_DEFS.filter(f => f.def).map(f => f.k)));
   const [cfgOpen, setCfgOpen] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [awaitingCode, setAwaitingCode] = useState(false);
   const [cardSize, setCardSize] = useState('M');
   const [mobileTab, setMobileTab] = useState<'panel' | 'canvas'>('panel');
   const [epicTitles, setEpicTitles] = useState<Record<string, string | null>>({});
@@ -514,17 +516,31 @@ const App: React.FC = () => {
     sessionStorage.setItem('jira_instance', clean);
     const authUrl = `https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(clean)}`;
     parent.postMessage({ pluginMessage: { type: 'open-external', url: authUrl } }, '*');
-    setError('A browser window opened for Jira login. Return here once connected.');
-    // Poll for auth completion
-    const poll = setInterval(async () => {
-      const r = await fetch('/api/jira-me', { credentials: 'include' }).catch(() => null);
-      if (r?.ok) {
-        clearInterval(poll);
+    setAwaitingCode(true);
+    setError(null);
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verifyCode.trim()) return;
+    try {
+      const r = await fetch('/api/jira-connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: verifyCode.trim() }),
+      });
+      if (r.ok) {
+        setAwaitingCode(false);
+        setVerifyCode('');
         setError(null);
         checkAuth();
+      } else {
+        const d = await r.json().catch(() => ({}));
+        setError(d.error || 'Invalid or expired code. Try connecting again.');
       }
-    }, 3000);
-    setTimeout(() => clearInterval(poll), 120000);
+    } catch {
+      setError('Connection failed. Please try again.');
+    }
   };
 
   const handleJQLSearch = async () => {
@@ -630,15 +646,31 @@ const App: React.FC = () => {
         {!authenticated ? (
           <>
             {error && <div className="err-bar">{error}</div>}
-            <div className="sec" style={{ paddingTop: 16 }}>
-              <div className="lbl">JIRA INSTANCE URL</div>
-              <input type="text" placeholder="mycompany.atlassian.net" value={instanceInput}
-                onChange={e => setInstanceInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleConnect()}
-                style={{ width: '100%', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 7, color: '#1E293B', fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: '9px 11px', outline: 'none' }}
-              />
-              <button id="exec-btn" style={{ marginTop: 10 }} onClick={handleConnect}>Connect Jira</button>
-            </div>
+            {!awaitingCode ? (
+              <div className="sec" style={{ paddingTop: 16 }}>
+                <div className="lbl">JIRA INSTANCE URL</div>
+                <input type="text" placeholder="mycompany.atlassian.net" value={instanceInput}
+                  onChange={e => setInstanceInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleConnect()}
+                  style={{ width: '100%', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 7, color: '#1E293B', fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, padding: '9px 11px', outline: 'none' }}
+                />
+                <button id="exec-btn" style={{ marginTop: 10 }} onClick={handleConnect}>Connect Jira</button>
+              </div>
+            ) : (
+              <div className="sec" style={{ paddingTop: 16 }}>
+                <div className="lbl">STEP 1 — Complete login in the browser that just opened</div>
+                <div className="lbl" style={{ marginTop: 12 }}>STEP 2 — Paste the code shown in your browser</div>
+                <textarea placeholder="Paste code here…" value={verifyCode}
+                  onChange={e => setVerifyCode(e.target.value)}
+                  style={{ width: '100%', marginTop: 6, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 7, color: '#1E293B', fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, padding: '9px 11px', outline: 'none', resize: 'vertical', minHeight: 80 }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button id="exec-btn" onClick={handleVerifyCode} style={{ flex: 1 }}>Verify &amp; Connect</button>
+                  <button onClick={() => { setAwaitingCode(false); setVerifyCode(''); setError(null); }}
+                    style={{ padding: '8px 14px', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: 7, fontSize: 12, cursor: 'pointer', color: '#64748B' }}>Cancel</button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <>
