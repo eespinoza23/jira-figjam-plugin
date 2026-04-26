@@ -13,8 +13,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const clientId = process.env.ATLASSIAN_CLIENT_ID;
   const instanceParam = req.query.instance as string;
 
+  console.log('OAuth auth endpoint - instanceParam:', instanceParam, 'type:', typeof instanceParam);
   if (instanceParam && !validateInstance(instanceParam)) {
-    return res.status(400).json({ error: 'Invalid Jira instance URL' });
+    console.log('Validation failed for:', instanceParam);
+    return res.status(400).json({ error: 'Invalid Jira instance URL', received: instanceParam });
   }
 
   const cleanInstance = instanceParam ? instanceParam.toLowerCase() : process.env.JIRA_INSTANCE_URL;
