@@ -83,7 +83,7 @@
   <script>
     async function checkAuthStatus() {
       try {
-        const res = await fetch('https://jira-figjam-plugin.vercel.app/api/jira-status', { credentials: 'include' });
+        const res = await fetch('https://jira-figjam-plugin.vercel.app/api/jira-connect', { credentials: 'include' });
         const data = await res.json();
         if (data.authenticated) {
           showSuccess(`Connected to ${data.instance}`);
