@@ -79,7 +79,10 @@ function Card({
           {issue.typeIconUrl
             ? <img src={issue.typeIconUrl} width={14} height={14} alt={issue.type} />
             : <span style={{ fontSize: 11 }}>{tc.icon}</span>}
-          <span className="jc-key-lbl">{issue.key}</span>
+          <a href={issueUrl} target="_blank" rel="noreferrer" className="jc-key-lbl"
+            onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', color: '#2563EB', textDecoration: 'none', fontWeight: 500 }}>
+            {issue.key}
+          </a>
         </div>
         <div className="jc-acts">
           <button className="c-sync" disabled={syncing} title={syncing ? 'Syncing…' : 'Sync from Jira'}
