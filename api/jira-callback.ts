@@ -48,7 +48,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       `refresh_token=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`,
     ]);
 
-    res.redirect('/');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`<!DOCTYPE html><html><head><title>Connected</title></head><body>
+<script>
+  if (window.opener) {
+    window.opener.postMessage('jira-auth-success', '*');
+    window.close();
+  } else {
+    window.location.href = '/';
+  }
+</script>
+<p>Connected! You can close this window.</p>
+</body></html>`);
   } catch (error) {
     console.error('OAuth token exchange failed:', error);
     res.status(500).json({ error: 'Failed to exchange code for token' });

@@ -436,6 +436,13 @@ const App: React.FC = () => {
   useEffect(() => {
     checkAuth();
     setupFigJamListeners();
+    const onMessage = (e: MessageEvent) => {
+      if (e.data === 'jira-auth-success') {
+        checkAuth();
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
   }, []);
 
   const checkAuth = async () => {
@@ -505,7 +512,12 @@ const App: React.FC = () => {
     const clean = normalizeInstance(instanceInput);
     if (!validateInstance(clean)) { setError('Invalid format. Use: mycompany.atlassian.net'); return; }
     sessionStorage.setItem('jira_instance', clean);
-    window.location.href = `/api/jira-auth?instance=${encodeURIComponent(clean)}`;
+    const popup = window.open(
+      `/api/jira-auth?instance=${encodeURIComponent(clean)}`,
+      'jira-oauth',
+      'width=600,height=700,scrollbars=yes,resizable=yes'
+    );
+    if (!popup) setError('Popup blocked — please allow popups for this plugin.');
   };
 
   const handleJQLSearch = async () => {
