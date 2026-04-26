@@ -141,7 +141,7 @@ const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#256
 let sel=new Set(), imported=[], instance=null, authenticated=false;
 
 function send(type, data={}) {
-  window.parent.postMessage({type, ...data}, '*');
+  window.parent.postMessage({pluginMessage: {type, ...data}}, '*');
 }
 
 function ini(n) {
