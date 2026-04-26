@@ -1,8 +1,4 @@
 {
-  "disableAllHooks": true,
-  "skillOverrides": {
-    "mcp-sentinel": "off"
-  },
   "permissions": {
     "allow": [
       "Edit(api/**)",

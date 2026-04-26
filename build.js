@@ -38,4 +38,11 @@ if (fs.existsSync(srcManifest)) {
   console.log('✓ Copied manifest.json');
 }
 
+// Copy index.html to root
+const srcIndex = path.join(srcPublic, 'index.html');
+if (fs.existsSync(srcIndex)) {
+  fs.copyFileSync(srcIndex, path.join(destDir, 'index.html'));
+  console.log('✓ Copied index.html to root');
+}
+
 console.log('Build complete: dist/');
