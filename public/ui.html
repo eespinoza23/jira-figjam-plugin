@@ -132,9 +132,11 @@
 
     window.addEventListener('message', (event) => {
       const msg = event.data;
+      console.log('UI received message:', msg);
       if (!msg?.type) return;
 
       if (msg.type === 'authenticated') {
+        console.log('Authenticated message received, transitioning...');
         showSuccess(`Connected to ${msg.instance}`);
         showSection('search-section');
       }
