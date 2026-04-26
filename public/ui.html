@@ -131,8 +131,8 @@
     }
 
     window.addEventListener('message', (event) => {
-      if (!event.data?.pluginMessage) return;
-      const msg = event.data.pluginMessage;
+      const msg = event.data;
+      if (!msg?.type) return;
 
       if (msg.type === 'authenticated') {
         showSuccess(`Connected to ${msg.instance}`);
