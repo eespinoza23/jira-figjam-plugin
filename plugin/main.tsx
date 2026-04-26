@@ -4,10 +4,12 @@ import { JiraIssue } from './types';
 import { mapJiraIssue, JiraAPIIssue } from './mapper';
 import { updateIssueInJira, syncIssueFromJira } from './api';
 import { addIssueToCanvas, setupFigJamListeners, getSelectedIssuePosition } from './figjam';
+import { getColorForType, getIconForType, createTypeConfig } from './colorUtils';
 import './styles.css';
 
 // ── Constants ──────────────────────────────────────────────────
-const TC: Record<string, { color: string; icon: string }> = {
+// Default fallback for known types (will be overridden by fetched types)
+const DEFAULT_TC: Record<string, { color: string; icon: string }> = {
   Epic:    { color: '#7C3AED', icon: '⚡' },
   Feature: { color: '#0284C7', icon: '✨' },
   Story:   { color: '#2563EB', icon: '📖' },
@@ -50,7 +52,7 @@ function Avatar({ name, color, cls = 'm-avatar' }: { name: string; color: string
 
 // ── Card component ─────────────────────────────────────────────
 function Card({
-  issue, diffs, jiraInstance, onEdit, onSync, syncedAt, syncing, epicTitle, onFetchEpic,
+  issue, diffs, jiraInstance, onEdit, onSync, syncedAt, syncing, epicTitle, onFetchEpic, typeColors: typeColorsMap,
 }: {
   issue: JiraIssue;
   diffs: Record<string, unknown>;
@@ -61,9 +63,10 @@ function Card({
   syncing: boolean;
   epicTitle?: string | null;
   onFetchEpic?: (epicKey: string) => void;
+  typeColors: Record<string, { color: string; icon: string }>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const tc = TC[issue.type] ?? TC.Story;
+  const tc = typeColorsMap[issue.type] ?? typeColorsMap.Story ?? { color: '#2563EB', icon: '📖' };
   const sc = SC[issue.status] ?? SC['To Do'];
   const hasDiff = Object.keys(diffs).length > 0;
 
@@ -199,13 +202,14 @@ function Card({
 interface JiraUser { accountId: string; displayName: string; avatarUrls?: Record<string, string> }
 
 function Drawer({
-  issue, jiraInstance, visFields, onClose, onSave,
+  issue, jiraInstance, visFields, onClose, onSave, typeColors,
 }: {
   issue: JiraIssue | null;
   jiraInstance: string;
   visFields: Set<string>;
   onClose: () => void;
   onSave: (key: string, changes: Record<string, unknown>) => Promise<void>;
+  typeColors: Record<string, { color: string; icon: string }>;
 }) {
   const [changes, setChanges] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
@@ -224,7 +228,7 @@ function Drawer({
   useEffect(() => { setChanges({}); setError(null); }, [issue?.key]);
 
   if (!issue) return null;
-  const tc = TC[issue.type] ?? TC.Story;
+  const tc = typeColors[issue.type] ?? typeColors.Story ?? { color: '#2563EB', icon: '📖' };
   const cv = (f: keyof JiraIssue) => (changes[f] ?? issue[f]) as string | number | null;
   const set = (f: string, v: unknown) => { setChanges(p => ({ ...p, [f]: v })); setError(null); };
 
@@ -407,6 +411,7 @@ const App: React.FC = () => {
   const [cardSize, setCardSize] = useState('M');
   const [mobileTab, setMobileTab] = useState<'panel' | 'canvas'>('panel');
   const [epicTitles, setEpicTitles] = useState<Record<string, string | null>>({});
+  const [typeColors, setTypeColors] = useState<Record<string, { color: string; icon: string }>>(DEFAULT_TC);
 
   useEffect(() => {
     checkAuth();
@@ -420,12 +425,38 @@ const App: React.FC = () => {
         const d = await r.json().catch(() => ({}));
         setAuthenticated(true);
         if (d.instance) setJiraInstance(d.instance);
+        // Fetch issue types after successful auth
+        fetchIssueTypes();
       } else {
         const d = await r.json().catch(() => ({}));
         setAuthenticated(false);
         if (r.status !== 401) setError(`Auth failed (${r.status}): ${d.error || 'unknown'}`);
       }
     } catch { /* network error */ }
+  };
+
+  const fetchIssueTypes = async () => {
+    try {
+      console.log('Fetching Jira issue types...');
+      const r = await fetch('/api/jira-issue-types', { credentials: 'include' });
+      if (r.ok) {
+        const types = await r.json();
+        console.log('Issue types fetched:', types);
+
+        // Build dynamic type colors mapping
+        const dynamicTC: Record<string, { color: string; icon: string }> = {};
+        types.forEach((type: { name: string }) => {
+          dynamicTC[type.name] = createTypeConfig(type.name);
+        });
+
+        setTypeColors(dynamicTC);
+        console.log('Type colors updated:', dynamicTC);
+      }
+    } catch (e) {
+      console.error('Failed to fetch issue types:', e);
+      // Fallback to defaults if fetch fails
+      setTypeColors(DEFAULT_TC);
+    }
   };
 
   const fetchEpicTitle = async (epicKey: string) => {
@@ -603,7 +634,7 @@ const App: React.FC = () => {
                   <div className="lbl">FILTER TYPE</div>
                   <div id="type-filter">
                     {['All', ...Array.from(new Set(issues.map(i => i.type)))].map(t => {
-                      const tc = TC[t as keyof typeof TC];
+                      const tc = typeColors[t as keyof typeof typeColors] ?? (t !== 'All' ? { color: '#6B7280', icon: '◆' } : undefined);
                       const active = filter === t;
                       const iconUrl = t !== 'All' ? issues.find(i => i.type === t)?.typeIconUrl : undefined;
                       return (
@@ -635,7 +666,7 @@ const App: React.FC = () => {
                 <div id="results-wrap" style={{ display: 'flex' }}>
                   <div id="rlist">
                     {filteredIssues.map(issue => {
-                      const tc = TC[issue.type] ?? TC.Story;
+                      const tc = typeColors[issue.type] ?? typeColors.Story ?? { color: '#2563EB', icon: '📖' };
                       const sel = selected.has(issue.key);
                       const issueUrl = `https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`;
                       return (
@@ -711,7 +742,7 @@ const App: React.FC = () => {
         ) : (
           <div id="ccontent" data-size={cardSize} style={{ display: 'block' }}>
             {groups.map(g => {
-              const tc = TC[g.type];
+              const tc = typeColors[g.type] ?? { color: '#6B7280', icon: '◆' };
               return (
                 <div key={g.type} className="grp">
                   <div className="grp-head">
@@ -732,7 +763,8 @@ const App: React.FC = () => {
                         onSync={handleSync} syncedAt={syncedAt[issue.key] ?? null}
                         syncing={!!syncing[issue.key]}
                         epicTitle={issue.epicLink ? epicTitles[issue.epicLink] : undefined}
-                        onFetchEpic={fetchEpicTitle} />
+                        onFetchEpic={fetchEpicTitle}
+                        typeColors={typeColors} />
                     ))}
                   </div>
                 </div>
@@ -795,7 +827,7 @@ const App: React.FC = () => {
 
       {/* ══ EDIT DRAWER ══ */}
       <Drawer issue={editingIssue} jiraInstance={jiraInstance} visFields={visFields}
-        onClose={() => setEditingIssue(null)} onSave={handleSaveEdit} />
+        onClose={() => setEditingIssue(null)} onSave={handleSaveEdit} typeColors={typeColors} />
     </div>
   );
 };
