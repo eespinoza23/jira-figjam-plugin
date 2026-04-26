@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     );
 
-    res.setHeader('Set-Cookie', `cloud_id=${cloudId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`);
+    res.setHeader('Set-Cookie', `cloud_id=${cloudId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=86400`);
     res.json(response.data.issues);
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 401) {

@@ -25,8 +25,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const state = randomBytes(16).toString('hex');
 
   res.setHeader('Set-Cookie', [
-    `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
-    `jira_instance=${cleanInstance}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+    `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=600`,
+    `jira_instance=${cleanInstance}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=600`,
   ]);
 
   // Atlassian OAuth 2.0 (3LO) uses auth.atlassian.com, NOT the instance URL

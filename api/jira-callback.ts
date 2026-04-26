@@ -44,8 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const refreshToken = tokenResponse.data.refresh_token;
 
     res.setHeader('Set-Cookie', [
-      `access_token=${accessToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${tokenResponse.data.expires_in}`,
-      `refresh_token=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`,
+      `access_token=${accessToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${tokenResponse.data.expires_in}`,
+      `refresh_token=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=2592000`,
     ]);
 
     res.setHeader('Content-Type', 'text/html');
