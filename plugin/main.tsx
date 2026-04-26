@@ -88,7 +88,28 @@ function Card({
             ? <img src={issue.typeIconUrl} width={14} height={14} alt={issue.type} />
             : <span style={{ fontSize: 11 }}>{tc.icon}</span>}
           <a href={issueUrl} target="_blank" rel="noreferrer" className="jc-key-lbl"
-            onClick={e => e.stopPropagation()} style={{ cursor: 'pointer', color: '#2563EB', textDecoration: 'none', fontWeight: 500 }}>
+            onClick={e => e.stopPropagation()}
+            style={{
+              cursor: 'pointer',
+              color: tc.color,
+              backgroundColor: tc.color + '18',
+              border: `1px solid ${tc.color}44`,
+              textDecoration: 'none',
+              fontWeight: 600,
+              fontSize: 11,
+              padding: '4px 8px',
+              borderRadius: 4,
+              display: 'inline-block',
+              transition: 'all 150ms ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = tc.color + '28';
+              e.currentTarget.style.borderColor = tc.color + '66';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = tc.color + '18';
+              e.currentTarget.style.borderColor = tc.color + '44';
+            }}>
             {issue.key}
           </a>
         </div>
