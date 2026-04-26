@@ -216,7 +216,8 @@ function renderList() {
 
 function checkAuth() {send('check-auth');}
 function startAuth() {
-  const inst = document.getElementById('instance-input').value.trim();
+  let inst = document.getElementById('instance-input').value.trim();
+  inst = inst.replace(/^https?:\/\//, '').replace(/\/$/, '');
   if (!inst) {alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return;}
   window.open(`https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(inst)}`);
 }
