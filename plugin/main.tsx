@@ -553,7 +553,7 @@ const App: React.FC = () => {
           <>
             <div className="sec">
               <div className="lbl">JQL QUERY</div>
-              <textarea id="jql" rows={3} defaultValue="project = CRT AND sprint in openSprints()" />
+              <textarea id="jql" rows={3} defaultValue="created >= -30d order by created DESC" />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                 {[
                   { label: 'My open issues',   jql: 'assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC' },
