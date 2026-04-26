@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fff;
+      color: #333;
+      padding: 16px;
+      font-size: 13px;
+    }
+    h2 { font-size: 16px; margin-bottom: 12px; font-weight: 600; }
+    label { display: block; font-weight: 500; margin-bottom: 6px; }
+    input, textarea, button {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font: inherit;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      padding: 10px 12px;
+    }
+    button:hover { background: #1d4ed8; }
+    button.secondary { background: #6b7280; }
+    button.secondary:hover { background: #4b5563; }
+    .section { display: none; }
+    .section.active { display: block; }
+    textarea { resize: vertical; min-height: 100px; font-family: monospace; }
+    .issues-list { max-height: 400px; overflow-y: auto; }
+    .issue-item {
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .issue-item:hover { background: #f3f4f6; }
+    .issue-key { font-weight: 600; color: #2563eb; }
+    .issue-summary { margin: 6px 0; }
+    .issue-status { font-size: 12px; color: #6b7280; }
+    .error { color: #dc2626; padding: 8px; background: #fee2e2; border-radius: 4px; margin-bottom: 12px; }
+    .success { color: #059669; padding: 8px; background: #d1fae5; border-radius: 4px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div id="auth-section" class="section active">
+    <h2>Connect to Jira</h2>
+    <label>Jira Instance</label>
+    <input type="text" id="instance-input" placeholder="your-instance.atlassian.net" value="eespinoza.atlassian.net" />
+    <button onclick="connectJira()">Connect</button>
+  </div>
+
+  <div id="code-section" class="section">
+    <h2>Verify Code</h2>
+    <p style="margin-bottom: 12px;">Paste verification code from browser:</p>
+    <textarea id="code-input" placeholder="Paste code here..."></textarea>
+    <button onclick="verifyCode()">Verify & Connect</button>
+    <button class="secondary" onclick="goBackToAuth()" style="margin-top: -12px;">Back</button>
+  </div>
+
+  <div id="search-section" class="section">
+    <h2>Search Issues</h2>
+    <label>JQL Query</label>
+    <textarea id="jql-input" placeholder="status = 'In Progress'" style="min-height: 80px;"></textarea>
+    <button onclick="searchJira()">Search</button>
+    <div id="search-results" class="issues-list"></div>
+    <button class="secondary" onclick="logout()" style="margin-top: 12px;">Logout</button>
+  </div>
+
+  <div id="error-msg" class="error" style="display: none;"></div>
+  <div id="success-msg" class="success" style="display: none;"></div>
+
+  <script>
+    function showSection(name) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById(name).classList.add('active');
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 4000);
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('success-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 4000);
+    }
+
+    function connectJira() {
+      const instance = document.getElementById('instance-input').value.trim();
+      if (!instance) return showError('Instance required');
+      parent.postMessage({ pluginMessage: { type: 'open-external', url: `https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${instance}` } }, '*');
+      showSection('code-section');
+    }
+
+    function verifyCode() {
+      const code = document.getElementById('code-input').value.trim();
+      if (!code) return showError('Code required');
+      parent.postMessage({ pluginMessage: { type: 'verify-code', code } }, '*');
+    }
+
+    function goBackToAuth() {
+      document.getElementById('code-input').value = '';
+      showSection('auth-section');
+    }
+
+    function searchJira() {
+      const jql = document.getElementById('jql-input').value.trim();
+      if (!jql) return showError('JQL required');
+      parent.postMessage({ pluginMessage: { type: 'search-jira', jql } }, '*');
+    }
+
+    function logout() {
+      document.getElementById('jql-input').value = '';
+      document.getElementById('search-results').innerHTML = '';
+      goBackToAuth();
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data?.pluginMessage) return;
+      const msg = event.data.pluginMessage;
+
+      if (msg.type === 'authenticated') {
+        showSuccess(`Connected to ${msg.instance}`);
+        showSection('search-section');
+      }
+
+      if (msg.type === 'auth-error') {
+        showError(`Auth failed: ${msg.error}`);
+      }
+
+      if (msg.type === 'search-results') {
+        const html = msg.issues.map(issue => `
+          <div class="issue-item" onclick="addToCanvas(${JSON.stringify(issue).replace(/"/g, '&quot;')})">
+            <div class="issue-key">${issue.key}</div>
+            <div class="issue-summary">${issue.fields.summary}</div>
+            <div class="issue-status">${issue.fields.status.name}</div>
+          </div>
+        `).join('');
+        document.getElementById('search-results').innerHTML = html;
+      }
+
+      if (msg.type === 'search-error') {
+        showError(`Search failed: ${msg.error}`);
+      }
+
+      if (msg.type === 'added-to-canvas') {
+        showSuccess('Added to canvas');
+      }
+    });
+
+    function addToCanvas(issue) {
+      parent.postMessage({ pluginMessage: { type: 'add-to-canvas', issue } }, '*');
+    }
+  </script>
+</body>
+</html>
