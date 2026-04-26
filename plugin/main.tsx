@@ -50,7 +50,7 @@ function Avatar({ name, color, cls = 'm-avatar' }: { name: string; color: string
 
 // ── Card component ─────────────────────────────────────────────
 function Card({
-  issue, diffs, jiraInstance, onEdit, onSync, syncedAt, syncing,
+  issue, diffs, jiraInstance, onEdit, onSync, syncedAt, syncing, epicTitle, onFetchEpic,
 }: {
   issue: JiraIssue;
   diffs: Record<string, unknown>;
@@ -59,6 +59,8 @@ function Card({
   onSync: (key: string) => void;
   syncedAt: string | null;
   syncing: boolean;
+  epicTitle?: string | null;
+  onFetchEpic?: (epicKey: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const tc = TC[issue.type] ?? TC.Story;
@@ -66,6 +68,12 @@ function Card({
   const hasDiff = Object.keys(diffs).length > 0;
 
   const issueUrl = `https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.key}`;
+
+  useEffect(() => {
+    if (expanded && issue.epicLink && onFetchEpic) {
+      onFetchEpic(issue.epicLink);
+    }
+  }, [expanded, issue.epicLink, onFetchEpic]);
 
   return (
     <div
@@ -148,7 +156,7 @@ function Card({
                 <a href={`https://${jiraInstance.replace(/^https?:\/\//, '').replace(/\/$/, '')}/browse/${issue.epicLink}`}
                    target="_blank" rel="noreferrer"
                    style={{ color: '#7C3AED', textDecoration: 'none', cursor: 'pointer' }}>
-                  ⚡ {issue.epicLink}
+                  ⚡ {issue.epicLink}{epicTitle ? ` · ${epicTitle}` : ''}
                 </a>
               </div>
             </div>
@@ -377,6 +385,7 @@ const App: React.FC = () => {
   const [cfgOpen, setCfgOpen] = useState(false);
   const [cardSize, setCardSize] = useState('M');
   const [mobileTab, setMobileTab] = useState<'panel' | 'canvas'>('panel');
+  const [epicTitles, setEpicTitles] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     checkAuth();
@@ -396,6 +405,19 @@ const App: React.FC = () => {
         if (r.status !== 401) setError(`Auth failed (${r.status}): ${d.error || 'unknown'}`);
       }
     } catch { /* network error */ }
+  };
+
+  const fetchEpicTitle = async (epicKey: string) => {
+    if (epicTitles[epicKey] !== undefined) return; // Already cached
+    try {
+      const r = await fetch(`/api/jira-issue?issueKey=${encodeURIComponent(epicKey)}`, { credentials: 'include' });
+      if (r.ok) {
+        const data = await r.json();
+        setEpicTitles(p => ({ ...p, [epicKey]: data.parentTitle || data.summary || null }));
+      }
+    } catch (e) {
+      console.error(`Failed to fetch epic title for ${epicKey}:`, e);
+    }
   };
 
   const normalizeInstance = (s: string) => s.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '').trim();
@@ -681,7 +703,9 @@ const App: React.FC = () => {
                       <Card key={issue.key} issue={issue} diffs={diffs[issue.key] ?? {}}
                         jiraInstance={jiraInstance} onEdit={setEditingIssue}
                         onSync={handleSync} syncedAt={syncedAt[issue.key] ?? null}
-                        syncing={!!syncing[issue.key]} />
+                        syncing={!!syncing[issue.key]}
+                        epicTitle={issue.epicLink ? epicTitles[issue.epicLink] : undefined}
+                        onFetchEpic={fetchEpicTitle} />
                     ))}
                   </div>
                 </div>

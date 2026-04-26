@@ -10,6 +10,7 @@ export interface JiraIssue {
   labels: string[];
   components: string[];
   epicLink: string | null;
+  epicLinkTitle?: string | null;
   fixVersion: string;
   reporter: string;
   updated: string;
