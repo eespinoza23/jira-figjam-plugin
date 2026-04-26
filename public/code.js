@@ -45,12 +45,12 @@ figma.ui.onmessage = async (msg) => {
         body: JSON.stringify({ code: msg.code }),
       });
 
-      if (!response.ok) throw new Error('Code verification failed');
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Code verification failed (status ' + response.status + ')');
       await figma.clientStorage.setAsync('session', { instance: data.instance, authenticated: true });
       figma.ui.postMessage({ type: 'authenticated', instance: data.instance });
     } catch (err) {
-      figma.ui.postMessage({ type: 'auth-error', error: err.message });
+      figma.ui.postMessage({ type: 'auth-error', error: err.message || String(err) });
     }
   }
 
