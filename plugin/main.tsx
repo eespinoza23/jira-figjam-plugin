@@ -215,6 +215,7 @@ function Drawer({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<JiraUser[]>([]);
+  const [sprints, setSprints] = useState<Array<{ id: string; name: string; state: string }>>([]);
   const ptsRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -223,6 +224,14 @@ function Drawer({
       .then(r => r.ok ? r.json() : [])
       .then((data: JiraUser[]) => setUsers(Array.isArray(data) ? data : []))
       .catch(() => setUsers([]));
+  }, [issue?.key]);
+
+  useEffect(() => {
+    if (!issue) return;
+    fetch(`/api/jira-sprints`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Array<{ id: string; name: string; state: string }>) => setSprints(Array.isArray(data) ? data : []))
+      .catch(() => setSprints([]));
   }, [issue?.key]);
 
   useEffect(() => { setChanges({}); setError(null); }, [issue?.key]);
@@ -301,8 +310,18 @@ function Drawer({
           {visFields.has('sprint') && (
             <div className="dfield">
               <div className="dlbl">SPRINT / ITERATION</div>
-              <input className="dinp" placeholder="e.g. Sprint 1, Sprint 2"
-                value={(cv('sprint') as string) ?? ''} onChange={e => set('sprint', e.target.value)} />
+              {sprints.length > 0 ? (
+                <select className="dsel" value={cv('sprint') as string}
+                  onChange={e => set('sprint', e.target.value)}>
+                  <option value="">— No Sprint (Backlog) —</option>
+                  {sprints.map(s => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input className="dinp" placeholder="Loading sprints..." disabled
+                  value={(cv('sprint') as string) ?? ''} onChange={e => set('sprint', e.target.value)} />
+              )}
             </div>
           )}
           {visFields.has('labels') && (
