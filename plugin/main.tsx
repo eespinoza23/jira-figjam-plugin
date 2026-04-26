@@ -298,6 +298,13 @@ function Drawer({
               </div>
             )}
           </div>
+          {visFields.has('sprint') && (
+            <div className="dfield">
+              <div className="dlbl">SPRINT / ITERATION</div>
+              <input className="dinp" placeholder="e.g. Sprint 1, Sprint 2"
+                value={(cv('sprint') as string) ?? ''} onChange={e => set('sprint', e.target.value)} />
+            </div>
+          )}
           {visFields.has('labels') && (
             <div className="dfield">
               <div className="dlbl">LABELS <span style={{ fontWeight: 400, opacity: .7 }}>(comma-separated)</span></div>
@@ -334,7 +341,7 @@ function Drawer({
             </div>
           )}
           {/* Read-only info fields */}
-          {(visFields.has('reporter') || visFields.has('sprint') || visFields.has('epicLink') || visFields.has('components') || visFields.has('updated')) && (
+          {(visFields.has('reporter') || visFields.has('epicLink') || visFields.has('components') || visFields.has('updated')) && (
             <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="dlbl" style={{ marginBottom: 0 }}>READ-ONLY INFO</div>
               <div className="dgrid" style={{ gap: 8 }}>
@@ -342,12 +349,6 @@ function Drawer({
                   <div className="dfield">
                     <div className="dlbl">REPORTER</div>
                     <div className="dinp" style={{ color: '#64748B', cursor: 'default', userSelect: 'text' }}>{issue.reporter || '—'}</div>
-                  </div>
-                )}
-                {visFields.has('sprint') && (
-                  <div className="dfield">
-                    <div className="dlbl">SPRINT</div>
-                    <div className="dinp" style={{ color: '#64748B', cursor: 'default', userSelect: 'text' }}>{issue.sprint || '—'}</div>
                   </div>
                 )}
                 {visFields.has('epicLink') && issue.epicLink && (
@@ -536,7 +537,7 @@ const App: React.FC = () => {
       const current = imported.find(i => i.key === key);
       if (current) {
         const detected: Record<string, unknown> = {};
-        (['title', 'status', 'assignee', 'points', 'priority'] as (keyof JiraIssue)[]).forEach(f => {
+        (['title', 'status', 'assignee', 'points', 'priority', 'sprint'] as (keyof JiraIssue)[]).forEach(f => {
           if (current[f] !== fresh[f]) detected[f] = { old: current[f], new: fresh[f] };
         });
         setImported(p => p.map(i => i.key === key ? { ...fresh, lastSynced: new Date().toISOString() } : i));
