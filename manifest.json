@@ -2,7 +2,7 @@
   "name": "Jira Multi-Import for FigJam",
   "api": "1.0.0",
   "editorType": ["figJam"],
-  "main": "https://jira-figjam-plugin.vercel.app/plugin.html",
+  "main": "https://jira-figjam-plugin.vercel.app",
   "permissions": [
     "figjam:read",
     "figjam:write"
