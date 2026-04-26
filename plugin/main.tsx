@@ -512,12 +512,19 @@ const App: React.FC = () => {
     const clean = normalizeInstance(instanceInput);
     if (!validateInstance(clean)) { setError('Invalid format. Use: mycompany.atlassian.net'); return; }
     sessionStorage.setItem('jira_instance', clean);
-    const popup = window.open(
-      `/api/jira-auth?instance=${encodeURIComponent(clean)}`,
-      'jira-oauth',
-      'width=600,height=700,scrollbars=yes,resizable=yes'
-    );
-    if (!popup) setError('Popup blocked — please allow popups for this plugin.');
+    const authUrl = `https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(clean)}`;
+    parent.postMessage({ pluginMessage: { type: 'open-external', url: authUrl } }, '*');
+    setError('A browser window opened for Jira login. Return here once connected.');
+    // Poll for auth completion
+    const poll = setInterval(async () => {
+      const r = await fetch('/api/jira-me', { credentials: 'include' }).catch(() => null);
+      if (r?.ok) {
+        clearInterval(poll);
+        setError(null);
+        checkAuth();
+      }
+    }, 3000);
+    setTimeout(() => clearInterval(poll), 120000);
   };
 
   const handleJQLSearch = async () => {
