@@ -410,10 +410,16 @@ const App: React.FC = () => {
   const fetchEpicTitle = async (epicKey: string) => {
     if (epicTitles[epicKey] !== undefined) return; // Already cached
     try {
+      console.log(`Fetching epic title for: ${epicKey}`);
       const r = await fetch(`/api/jira-issue?issueKey=${encodeURIComponent(epicKey)}`, { credentials: 'include' });
       if (r.ok) {
         const data = await r.json();
+        console.log(`Epic title response:`, data);
         setEpicTitles(p => ({ ...p, [epicKey]: data.title || null }));
+      } else {
+        console.error(`Epic title fetch failed: ${r.status} ${r.statusText}`);
+        const errData = await r.json().catch(() => ({}));
+        console.error('Error details:', errData);
       }
     } catch (e) {
       console.error(`Failed to fetch epic title for ${epicKey}:`, e);
