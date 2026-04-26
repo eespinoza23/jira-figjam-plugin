@@ -469,7 +469,7 @@ const App: React.FC = () => {
       <div id="panel">
         <div className="p-head">
           <div className="p-row">
-            <div className="p-ico">🔌</div>
+            <img src="/icons/jira-figjam-icon.png" alt="Jira Multi-Import" style={{ width: 32, height: 32, borderRadius: 6 }} />
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#1E293B' }}>Jira Multi-Import</div>
               <div style={{ fontSize: 9, color: '#4B5563', fontFamily: "'IBM Plex Mono',monospace", marginTop: 1 }}>for FigJam</div>
