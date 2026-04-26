@@ -102,7 +102,7 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 
   <div class="sec">
     <div class="lbl">JQL QUERY</div>
-    <textarea id="jql" rows="3">status != Done ORDER BY updated DESC</textarea>
+    <textarea id="jql" rows="3">created >= -30d ORDER BY created DESC</textarea>
     <button id="exec-btn" onclick="execJQL()">▶ Execute JQL</button>
   </div>
 
@@ -316,6 +316,13 @@ window.addEventListener('message', (evt) => {
     sel = new Set();
     renderList();
     renderCanvas();
+  }
+
+  if (msg.type === 'search-error') {
+    const btn = document.getElementById("exec-btn");
+    btn.disabled = false;
+    btn.innerHTML = "▶ Execute JQL";
+    alert('Search failed: ' + msg.error);
   }
 
   if (msg.type === 'sync-result') {
