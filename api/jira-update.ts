@@ -25,12 +25,18 @@ async function refreshAccessToken(req: VercelRequest, res: VercelResponse): Prom
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { key, fields } = req.body;
   if (!key) return res.status(400).json({ error: 'Missing issue key' });
 
-  let accessToken = req.cookies.access_token;
+  const authHeader = req.headers.authorization;
+  let accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
   const cloudId = req.cookies.cloud_id;
   if (!accessToken || !cloudId) return res.status(401).json({ error: 'Not authenticated' });
 
