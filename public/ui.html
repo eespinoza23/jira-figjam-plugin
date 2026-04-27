@@ -28,7 +28,19 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 .sec{padding:12px 16px 0;flex-shrink:0}
 .lbl{font-size:9px;color:#6B7280;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace;margin-bottom:6px}
 
+/* JQL presets */
+.presets{display:none;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.preset-btn{background:#1A1D24;border:1px solid #252830;border-radius:5px;color:#8B949E;font-size:8px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;cursor:pointer;white-space:nowrap}
+.preset-btn:hover{border-color:#374151;color:#C9D1D9}
+
 #jql{width:100%;background:#0D1117;border:1px solid #252830;border-radius:7px;color:#93C5FD;font-size:10px;font-family:'IBM Plex Mono',monospace;padding:9px 11px;resize:none;outline:none;line-height:1.65;display:none}
+
+/* Group by row */
+.group-row{display:none;align-items:center;gap:8px;margin-top:7px}
+.group-lbl{font-size:8px;color:#6B7280;font-family:'IBM Plex Mono',monospace}
+.grp-pill{background:#1A1D24;border:1px solid #252830;border-radius:5px;color:#8B949E;font-size:8px;font-family:'IBM Plex Mono',monospace;padding:3px 9px;cursor:pointer}
+.grp-pill.active{background:#1D4ED833;border-color:#1D4ED8;color:#60A5FA}
+
 #exec-btn{width:100%;margin-top:7px;background:linear-gradient(135deg,#1D4ED8,#2563EB);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;display:none;align-items:center;justify-content:center;gap:5px}
 #exec-btn:disabled{background:#1E2430;color:#4B5563;cursor:not-allowed}
 
@@ -37,40 +49,21 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 #sel-bar{display:none;flex-shrink:0;align-items:stretch;background:#1A1D24;border-top:1px solid #252830;margin-top:10px}
 .sel-l{display:flex;align-items:center;gap:8px;padding:9px 16px;flex:1;cursor:pointer;user-select:none}
 .gchk{width:16px;height:16px;border-radius:4px;border:2px solid #374151;background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700}
+#sync-all-btn{background:none;border:none;cursor:pointer;color:#60A5FA;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:0 12px;border-left:1px solid #252830;white-space:nowrap}
+#sync-all-btn:disabled{color:#374151;cursor:not-allowed}
 
 #results-wrap{flex:1;display:none;flex-direction:column;overflow:hidden}
 #rlist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding:8px 16px}
 .irow{background:#0D1117;border:1px solid #1E2430;border-radius:7px;padding:8px 10px;cursor:pointer;display:flex;gap:9px;align-items:flex-start}
 .ichk{width:14px;height:14px;border-radius:3px;margin-top:2px;flex-shrink:0;border:2px solid #374151;background:transparent;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700}
+.sync-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px}
 
 #imp-sel{flex-shrink:0;margin:8px 16px 12px;background:#059669;border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;width:calc(100% - 32px);display:none}
 #imp-sel:disabled{background:#1A1D24;color:#374151}
 
 #idle{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#2D3148}
 
-#canvas-wrap{flex:1;overflow-y:auto;background-color:#F0F2F5;background-image:radial-gradient(circle,#C9CDD4 1px,transparent 1px);background-size:24px 24px}
-
-#cempty{display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px}
-#ccontent{padding:28px 20px 80px;display:none}
-.grp{margin-bottom:36px}
-.grp-title{font-size:10px;font-weight:700;letter-spacing:.14em;font-family:'IBM Plex Mono',monospace}
-.cards-row{display:flex;flex-wrap:wrap;gap:12px}
-
-.card{width:248px;flex-shrink:0;background:#fff;border-radius:12px;border:1.5px solid #E5E7EB;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;animation:fadeUp .3s ease forwards;cursor:pointer}
-.card:hover{box-shadow:0 8px 24px rgba(0,0,0,.11)}
-
-.c-accent{height:3px;width:100%}
-.c-compact{padding:10px 12px 9px;display:flex;flex-direction:column;gap:6px}
-.c-toprow{display:flex;justify-content:space-between;align-items:center}
-.c-type{font-size:8px;font-weight:700;font-family:'IBM Plex Mono',monospace}
-.c-acts{display:flex;align-items:center;gap:5px}
-.c-link{font-size:8px;font-weight:700;font-family:'IBM Plex Mono',monospace;text-decoration:none;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 5px;border-radius:3px;white-space:nowrap}
-.c-sync{background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:14px;padding:2px 3px}
-.c-title{font-size:11px;font-weight:600;color:#111827;line-height:1.4}
-.c-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:1px}
-.m-avatar{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700}
-.m-status{font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap}
-.m-pts{font-size:8px;font-weight:700;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 5px;border-radius:4px;font-family:'IBM Plex Mono',monospace}
+#edit-drawer{display:none;flex-direction:column;flex:1;overflow:hidden}
 </style>
 </head>
 <body>
@@ -95,7 +88,7 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
     <button id="logout-btn" onclick="doLogout()" style="display:none;width:100%;padding:7px;background:transparent;border:1px solid #374151;border-radius:6px;color:#6B7280;font-size:11px;cursor:pointer;margin-top:4px">Disconnect</button>
   </div>
 
-  <div class="sec" id="code-sec">
+  <div class="sec" id="code-sec" style="display:none">
     <div class="lbl">PASTE CODE FROM BROWSER</div>
     <textarea id="verify-code-input" rows="3" placeholder="Paste the code from the browser here..." style="width:100%;background:#0D1117;border:1px solid #374151;border-radius:6px;color:#93C5FD;font-size:10px;font-family:monospace;padding:8px;resize:none;box-sizing:border-box;margin-bottom:8px"></textarea>
     <button class="auth-btn" onclick="submitCode()" style="background:linear-gradient(135deg,#059669,#10B981)">✓ Submit Code</button>
@@ -103,7 +96,18 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 
   <div class="sec">
     <div class="lbl">JQL QUERY</div>
+    <div class="presets" id="presets">
+      <button class="preset-btn" onclick="setJQL('sprint in openSprints() ORDER BY rank ASC')">Current Sprint</button>
+      <button class="preset-btn" onclick="setJQL('sprint in futureSprints() ORDER BY rank ASC')">Next Sprint</button>
+      <button class="preset-btn" onclick="setJQL('issuetype = Epic ORDER BY created DESC')">Epics</button>
+      <button class="preset-btn" onclick="setJQL('sprint is EMPTY AND issuetype != Epic ORDER BY priority ASC')">Unplanned</button>
+    </div>
     <textarea id="jql" rows="3">created >= -30d ORDER BY created DESC</textarea>
+    <div class="group-row" id="group-row">
+      <span class="group-lbl">GROUP BY</span>
+      <button class="grp-pill active" id="grp-type" onclick="setGroupBy('type')">Type</button>
+      <button class="grp-pill" id="grp-sprint" onclick="setGroupBy('sprint')">Sprint</button>
+    </div>
     <button id="exec-btn" onclick="execJQL()">▶ Execute JQL</button>
   </div>
 
@@ -112,6 +116,7 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
       <div class="gchk" id="gchk"></div>
       <span id="sel-lbl" style="font-size:9px;color:#8B949E;font-family:'IBM Plex Mono',monospace">0 of 0 selected</span>
     </div>
+    <button id="sync-all-btn" onclick="syncAll()" title="Re-fetch all imported issues from Jira and update canvas">↻ Sync All</button>
   </div>
 
   <div id="results-wrap">
@@ -124,7 +129,7 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
     <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;text-align:center;color:#2D3148">Connect to Jira then run a query</div>
   </div>
 
-  <div id="edit-drawer" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+  <div id="edit-drawer">
     <div style="padding:12px 16px;border-bottom:1px solid #252830;display:flex;align-items:center;gap:10px;flex-shrink:0">
       <button onclick="closeEdit()" style="background:none;border:none;color:#6B7280;cursor:pointer;font-size:16px;padding:0;line-height:1">←</button>
       <div>
@@ -146,95 +151,115 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 </div>
 
 <script>
-const TC={Epic:{c:"#7C3AED",i:"⚡"},Feature:{c:"#0284C7",i:"✨"},Story:{c:"#2563EB",i:"📖"},Bug:{c:"#DC2626",i:"🐛"}};
-const PC={Critical:"#EF4444",High:"#F97316",Medium:"#EAB308",Low:"#D1D5DB"};
-const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#2563EB"},Done:{bg:"#F0FDF4",c:"#16A34A"}};
+var TC = {Epic:{c:"#7C3AED",i:"⚡"},Feature:{c:"#0284C7",i:"✨"},Story:{c:"#2563EB",i:"📖"},Bug:{c:"#DC2626",i:"🐛"},Task:{c:"#059669",i:"✔"},Subtask:{c:"#0891B2",i:"↳"}};
+var SC = {"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#2563EB"},"In Review":{bg:"#FFF7ED",c:"#EA580C"},Done:{bg:"#F0FDF4",c:"#16A34A"},Blocked:{bg:"#FEF2F2",c:"#DC2626"},Closed:{bg:"#F0FDF4",c:"#16A34A"}};
+var SPRINT_STATE_C = {active:"#059669",future:"#2563EB",closed:"#9CA3AF"};
 
-let sel=new Set(), imported=[], instance=null, authenticated=false;
-let _token = null, _refresh = null, nodeMap = {}, editingKey = null;
-const API = 'https://jira-figjam-plugin.vercel.app';
+var sel = new Set(), imported = [], instance = null, authenticated = false;
+var _token = null, _refresh = null, nodeMap = {}, editingKey = null;
+var groupBy = 'type', lastJQL = '';
+var API = 'https://jira-figjam-plugin.vercel.app';
 
-function send(type, data={}) {
-  window.parent.postMessage({pluginMessage: {type, ...data}}, '*');
+function send(type, data) {
+  var msg = {type: type};
+  if (data) { var k; for (k in data) { msg[k] = data[k]; } }
+  window.parent.postMessage({pluginMessage: msg}, '*');
 }
 
 function apiHeaders() {
-  const h = {'Content-Type': 'application/json'};
+  var h = {'Content-Type': 'application/json'};
   if (_token) h['Authorization'] = 'Bearer ' + _token;
   if (_refresh) h['X-Refresh-Token'] = _refresh;
   return h;
 }
 
+function normalizeIssue(raw) {
+  var f = raw.fields || {};
+  var sprintList = f.customfield_10020;
+  var sprint = null, sprintState = null;
+  if (sprintList && sprintList.length) {
+    sprint = sprintList[0].name || null;
+    sprintState = sprintList[0].state || null;
+  }
+  return {
+    key: raw.key,
+    type: (f.issuetype && f.issuetype.name) || 'Story',
+    status: (f.status && f.status.name) || 'To Do',
+    priority: (f.priority && f.priority.name) || 'Medium',
+    summary: f.summary || '',
+    assignee: (f.assignee && f.assignee.displayName) || 'Unassigned',
+    points: f.customfield_10016 || f.story_points || null,
+    sprint: sprint,
+    sprintState: sprintState,
+    epicLink: f.customfield_10014 || null,
+    fixVersion: (f.fixVersions && f.fixVersions.length) ? f.fixVersions[0].name : null,
+    reporter: (f.reporter && f.reporter.displayName) || null,
+    labels: f.labels || [],
+    components: (f.components || []).map(function(c) { return c.name; })
+  };
+}
+
 function ini(n) {
-  return (n && n !== "Unassigned") ? n.split(" ").map(x => x[0]).join("") : "?";
+  if (!n || n === 'Unassigned') return '?';
+  var p = n.trim().split(' ');
+  if (p.length === 1) return p[0].slice(0,2).toUpperCase();
+  return (p[0][0] + p[p.length-1][0]).toUpperCase();
 }
 
-function av(name, color) {
-  const bg = name === "Unassigned" ? "#E5E7EB" : color + "22";
-  const br = name === "Unassigned" ? "#D1D5DB" : color + "55";
-  const fc = name === "Unassigned" ? "#9CA3AF" : color;
-  return `<div class="m-avatar" style="background:${bg};border:1.5px solid ${br};color:${fc}">${ini(name)}</div>`;
+function setGroupBy(g) {
+  groupBy = g;
+  document.getElementById('grp-type').className = 'grp-pill' + (g === 'type' ? ' active' : '');
+  document.getElementById('grp-sprint').className = 'grp-pill' + (g === 'sprint' ? ' active' : '');
 }
 
-function buildCard(issue, delay=0) {
-  const tc = TC[issue.type] || TC.Story;
-  const sc = SC[issue.status] || SC["To Do"];
-  const pc = PC[issue.priority] || "#9CA3AF";
-  const assignee = issue.assignee || "Unassigned";
-
-  return `<div class="card" id="card-${issue.key}" style="animation-delay:${delay}ms" onclick="editCard('${issue.key}')">
-    <div class="c-accent" style="background:${tc.c}"></div>
-    <div class="c-compact">
-      <div class="c-toprow">
-        <div class="c-type" style="color:${tc.c}">${tc.i} ${(issue.type||"").toUpperCase()}</div>
-        <div class="c-acts">
-          <a class="c-link" href="https://${instance}/browse/${issue.key}" target="_blank" onclick="event.stopPropagation()">${issue.key} ↗</a>
-          <button class="c-sync" onclick="event.stopPropagation();doSync('${issue.key}')">↻</button>
-        </div>
-      </div>
-      <div class="c-title">${issue.summary || ""}</div>
-      <div class="c-meta">
-        ${av(assignee, tc.c)}
-        <div style="width:1px;height:10px;background:#E5E7EB;flex-shrink:0"></div>
-        <div style="width:7px;height:7px;border-radius:50%;background:${pc}"></div>
-        <span class="m-status" style="color:${sc.c};background:${sc.bg};border:1px solid ${sc.bg}">${issue.status||"To Do"}</span>
-        ${issue.points?`<span class="m-pts">${issue.points}p</span>`:""}
-      </div>
-    </div>
-  </div>`;
+function setJQL(q) {
+  document.getElementById('jql').value = q;
 }
-
-function renderCanvas() {}
 
 function renderList() {
-  const f = imported;
-  document.getElementById("rlist").innerHTML = f.map(issue => {
-    const tc = TC[issue.type] || TC.Story;
-    const s = sel.has(issue.key);
-    const hasCard = !!nodeMap[issue.key];
-    return `<div class="irow${s?" sel":""}" style="--tc:${tc.c}">
-      <div class="ichk${s?" on":""}" onclick="toggleIssue('${issue.key}')">${s?"✓":""}</div>
-      <div style="flex:1;cursor:pointer" onclick="toggleIssue('${issue.key}')">
-        <div style="font-size:8px;color:${tc.c};font-family:'IBM Plex Mono',monospace">${tc.i} ${issue.key}</div>
-        <div style="font-size:10px;color:#C9D1D9;font-weight:500">${(issue.summary||"").substring(0,45)}</div>
-      </div>
-      ${hasCard ? `<button onclick="openEdit('${issue.key}')" style="flex-shrink:0;background:#1E2430;border:1px solid #374151;border-radius:5px;color:#93C5FD;font-size:9px;padding:3px 7px;cursor:pointer;font-family:'IBM Plex Mono',monospace">Edit</button>` : ''}
-    </div>`;
-  }).join("");
+  var statusDotColor = function(s) {
+    var map = {'To Do':'#9CA3AF','In Progress':'#3B82F6','In Review':'#F97316',Done:'#22C55E',Blocked:'#EF4444',Closed:'#22C55E'};
+    return map[s] || '#9CA3AF';
+  };
+  document.getElementById('rlist').innerHTML = imported.map(function(issue) {
+    var tc = TC[issue.type] || TC.Story;
+    var s = sel.has(issue.key);
+    var hasCard = !!nodeMap[issue.key];
+    var dotColor = statusDotColor(issue.status);
+    var sprintTag = issue.sprint ? ('<span style="font-size:7px;color:' + (SPRINT_STATE_C[issue.sprintState] || '#6B7280') + ';font-family:IBM Plex Mono,monospace;margin-left:4px">' + issue.sprint.replace(' Sprint','') + '</span>') : '';
+    return '<div class="irow">' +
+      '<div class="ichk' + (s ? ' on' : '') + '" onclick="toggleIssue(\'' + issue.key + '\')" style="' + (s ? 'background:#1D4ED8;border-color:#1D4ED8;' : '') + '">' + (s ? '✓' : '') + '</div>' +
+      '<div style="flex:1;cursor:pointer;min-width:0" onclick="toggleIssue(\'' + issue.key + '\')">' +
+        '<div style="font-size:8px;color:' + tc.c + ';font-family:IBM Plex Mono,monospace;display:flex;align-items:center;gap:4px">' + issue.key + sprintTag + '</div>' +
+        '<div style="font-size:10px;color:#C9D1D9;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (issue.summary || '').substring(0,45) + '</div>' +
+        '<div style="display:flex;align-items:center;gap:5px;margin-top:3px">' +
+          '<div style="width:6px;height:6px;border-radius:50%;background:' + dotColor + ';flex-shrink:0"></div>' +
+          '<span style="font-size:7px;color:#6B7280">' + (issue.status || '') + '</span>' +
+          (issue.points ? '<span style="font-size:7px;color:#60A5FA;font-family:IBM Plex Mono,monospace">' + issue.points + 'pt</span>' : '') +
+        '</div>' +
+      '</div>' +
+      (hasCard ? '<button onclick="openEdit(\'' + issue.key + '\')" style="flex-shrink:0;background:#1E2430;border:1px solid #374151;border-radius:5px;color:#93C5FD;font-size:9px;padding:3px 7px;cursor:pointer;font-family:IBM Plex Mono,monospace;align-self:center">Edit</button>' : '') +
+    '</div>';
+  }).join('');
 
-  const sc = [...sel].filter(k => f.some(i => i.key === k)).length;
-  document.getElementById("sel-lbl").textContent = `${sc} of ${f.length} selected`;
-  document.getElementById("imp-sel").disabled = sel.size === 0;
+  var sc = 0;
+  imported.forEach(function(i) { if (sel.has(i.key)) sc++; });
+  document.getElementById('sel-lbl').textContent = sc + ' of ' + imported.length + ' selected';
+  document.getElementById('imp-sel').disabled = sel.size === 0;
+  document.getElementById('gchk').textContent = (sc > 0 && sc === imported.length) ? '✓' : '';
+  document.getElementById('sync-all-btn').disabled = imported.length === 0;
 }
 
 function openEdit(key) {
-  const issue = imported.find(i => i.key === key);
+  var issue = null;
+  imported.forEach(function(i) { if (i.key === key) issue = i; });
   if (!issue) return;
   editingKey = key;
+  var tc = TC[issue.type] || TC.Story;
   document.getElementById('edit-key').textContent = issue.key;
-  document.getElementById('edit-type').textContent = (TC[issue.type] || TC.Story).i + ' ' + issue.type;
+  document.getElementById('edit-type').textContent = tc.i + ' ' + issue.type + (issue.sprint ? ' · ' + issue.sprint : '');
   document.getElementById('edit-summary').value = issue.summary || '';
-  document.getElementById('edit-points').value = issue.points || '';
+  document.getElementById('edit-points').value = issue.points !== null && issue.points !== undefined ? issue.points : '';
   document.getElementById('edit-status').textContent = '';
   document.getElementById('results-wrap').style.display = 'none';
   document.getElementById('sel-bar').style.display = 'none';
@@ -251,26 +276,27 @@ function closeEdit() {
 
 function saveEdit() {
   if (!editingKey) return;
-  const summary = document.getElementById('edit-summary').value.trim();
-  const points  = document.getElementById('edit-points').value;
-  const btn     = document.getElementById('save-btn');
-  const status  = document.getElementById('edit-status');
+  var summary = document.getElementById('edit-summary').value.trim();
+  var points  = document.getElementById('edit-points').value;
+  var btn     = document.getElementById('save-btn');
+  var status  = document.getElementById('edit-status');
   if (!summary) { alert('Summary cannot be empty'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
   status.textContent = '';
 
-  const fields = { summary };
+  var fields = { summary: summary };
   if (points !== '' && !isNaN(parseFloat(points))) fields['customfield_10016'] = parseFloat(points);
 
+  var key = editingKey;
   fetch(API + '/api/jira-update', {
     method: 'POST',
     headers: apiHeaders(),
-    body: JSON.stringify({ key: editingKey, fields })
+    body: JSON.stringify({ key: key, fields: fields })
   })
-  .then(r => r.json())
-  .then(d => {
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
     if (!d.ok) {
       if (d.code === 'auth_expired') {
         btn.disabled = false;
@@ -279,32 +305,45 @@ function saveEdit() {
         status.textContent = 'Session expired — Disconnect and reconnect';
         return;
       }
-      const detail = d.detail ? JSON.stringify(d.detail) : '';
+      var detail = d.detail ? JSON.stringify(d.detail) : '';
       throw new Error((d.error || 'Update failed') + (detail ? ': ' + detail : ''));
     }
     if (d.new_access_token) { _token = d.new_access_token; _refresh = d.new_refresh_token; }
-    // Update local state
-    imported = imported.map(i => i.key === editingKey ? Object.assign({}, i, {
-      summary: summary,
-      points: points !== '' ? parseFloat(points) : i.points
-    }) : i);
-    // Update canvas card if it exists — use stored child node IDs directly
-    const ids = nodeMap[editingKey];
+
+    var ptsVal = points !== '' && !isNaN(parseFloat(points)) ? parseFloat(points) : null;
+    imported = imported.map(function(i) {
+      if (i.key !== key) return i;
+      var updated = {};
+      var k; for (k in i) updated[k] = i[k];
+      updated.summary = summary;
+      if (ptsVal !== null) updated.points = ptsVal;
+      return updated;
+    });
+
+    // Update canvas card via stored child node IDs
+    var ids = nodeMap[key];
     if (ids && ids.summaryId) {
       send('update-canvas-card', {
-        key: editingKey,
+        key: key,
         summaryId: ids.summaryId,
         ptsId: ids.ptsId || null,
+        statusId: ids.statusId || null,
+        dotId: ids.dotId || null,
+        assigneeId: ids.assigneeId || null,
         summary: summary,
-        points: points !== '' && !isNaN(parseFloat(points)) ? parseFloat(points) : undefined
+        points: ptsVal !== null ? ptsVal : undefined,
+        status: undefined,
+        assignee: undefined
       });
     }
+
     btn.disabled = false;
     btn.textContent = '💾 Save & Sync to Jira';
     status.style.color = '#4ADE80';
     status.textContent = 'Synced to Jira ✓';
+    renderList();
   })
-  .catch(e => {
+  .catch(function(e) {
     btn.disabled = false;
     btn.textContent = '💾 Save & Sync to Jira';
     status.style.color = '#F87171';
@@ -316,112 +355,117 @@ function checkAuth() {
   send('get-session');
 }
 function startAuth() {
-  let inst = document.getElementById('instance-input').value.trim();
+  var inst = document.getElementById('instance-input').value.trim();
   inst = inst.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  if (!inst) {alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return;}
+  if (!inst) { alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return; }
   send('open-external', {url: API + '/api/jira-auth?instance=' + encodeURIComponent(inst)});
   document.getElementById('code-sec').style.display = 'block';
 }
 function submitCode() {
-  const code = document.getElementById('verify-code-input').value.trim();
-  if (!code) {alert('Paste the code from the browser first.'); return;}
+  var code = document.getElementById('verify-code-input').value.trim();
+  if (!code) { alert('Paste the code from the browser first.'); return; }
   fetch(API + '/api/jira-connect', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({code})
+    body: JSON.stringify({code: code})
   })
-  .then(r => r.json())
-  .then(d => {
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
     if (!d.ok) throw new Error(d.error || 'Failed');
     _token = d.access_token;
     _refresh = d.refresh_token;
     instance = d.instance;
     authenticated = true;
-    send('save-session', {instance});
+    send('save-session', {instance: instance});
     showConnected();
   })
-  .catch(e => alert('Auth failed: ' + e.message));
+  .catch(function(e) { alert('Auth failed: ' + e.message); });
 }
 function showConnected() {
   document.getElementById('auth-btn').textContent = '✓ Connected';
   document.getElementById('auth-btn').disabled = true;
   document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('code-sec').style.display = 'none';
+  document.getElementById('presets').style.display = 'flex';
   document.getElementById('jql').style.display = 'block';
+  document.getElementById('group-row').style.display = 'flex';
   document.getElementById('exec-btn').style.display = 'flex';
   document.getElementById('conn-status').style.display = 'flex';
   document.getElementById('inst-name').textContent = (instance || '').replace('.atlassian.net','');
 }
 function doLogout() {
-  _token = null; authenticated = false; instance = null; imported = []; sel = new Set();
+  _token = null; _refresh = null; authenticated = false; instance = null;
+  imported = []; sel = new Set(); nodeMap = {};
   send('clear-session');
   document.getElementById('auth-btn').textContent = '🔗 Connect to Jira';
   document.getElementById('auth-btn').disabled = false;
   document.getElementById('logout-btn').style.display = 'none';
   document.getElementById('conn-status').style.display = 'none';
   document.getElementById('code-sec').style.display = 'none';
+  document.getElementById('presets').style.display = 'none';
   document.getElementById('jql').style.display = 'none';
+  document.getElementById('group-row').style.display = 'none';
   document.getElementById('exec-btn').style.display = 'none';
   document.getElementById('idle').style.display = 'flex';
   document.getElementById('sel-bar').style.display = 'none';
   document.getElementById('results-wrap').style.display = 'none';
   document.getElementById('imp-sel').style.display = 'none';
+  document.getElementById('edit-drawer').style.display = 'none';
 }
+
 function execJQL() {
-  const jql = document.getElementById("jql").value.trim();
+  var jql = document.getElementById('jql').value.trim();
   if (!jql) return;
-  const btn = document.getElementById("exec-btn");
+  lastJQL = jql;
+  var btn = document.getElementById('exec-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="spin">⟳</span> Searching…';
   fetch(API + '/api/jira-search', {
     method: 'POST',
     headers: apiHeaders(),
-    body: JSON.stringify({jql})
+    body: JSON.stringify({jql: jql})
   })
-  .then(r => r.json())
-  .then(d => {
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
     btn.disabled = false;
     btn.innerHTML = '▶ Execute JQL';
-    if (d.error) {alert('Search failed: ' + d.error); return;}
-    const issues = d.issues || d || [];
-    imported = issues.map(issue => ({
-      key: issue.key,
-      type: issue.fields && issue.fields.issuetype && issue.fields.issuetype.name || "Story",
-      status: issue.fields && issue.fields.status && issue.fields.status.name || "To Do",
-      priority: issue.fields && issue.fields.priority && issue.fields.priority.name || "Medium",
-      summary: (issue.fields && issue.fields.summary) || "",
-      assignee: issue.fields && issue.fields.assignee && issue.fields.assignee.displayName || "Unassigned",
-      points: (issue.fields && issue.fields.customfield_10016) || (issue.fields && issue.fields.story_points)
-    }));
-    document.getElementById("idle").style.display = "none";
-    document.getElementById("sel-bar").style.display = "flex";
-    document.getElementById("results-wrap").style.display = "flex";
-    document.getElementById("imp-sel").style.display = "block";
+    if (d.error) { alert('Search failed: ' + d.error); return; }
+    var issues = d.issues || [];
+    imported = issues.map(function(raw) { return normalizeIssue(raw); });
+    document.getElementById('idle').style.display = 'none';
+    document.getElementById('sel-bar').style.display = 'flex';
+    document.getElementById('results-wrap').style.display = 'flex';
+    document.getElementById('imp-sel').style.display = 'block';
     sel = new Set();
     renderList();
-    renderCanvas();
   })
-  .catch(e => {
+  .catch(function(e) {
     btn.disabled = false;
     btn.innerHTML = '▶ Execute JQL';
     alert('Search failed: ' + e.message);
   });
 }
 
-function toggleIssue(k) {sel.has(k) ? sel.delete(k) : sel.add(k); renderList();}
+function toggleIssue(k) {
+  if (sel.has(k)) sel.delete(k); else sel.add(k);
+  renderList();
+}
 function toggleAll() {
-  const all = [...imported].every(i => sel.has(i.key));
-  [...imported].forEach(i => all ? sel.delete(i.key) : sel.add(i.key));
+  var all = imported.length > 0 && imported.every(function(i) { return sel.has(i.key); });
+  imported.forEach(function(i) { if (all) sel.delete(i.key); else sel.add(i.key); });
   renderList();
 }
 
 function importSel() {
-  const issues = [...sel].map(key => imported.find(i => i.key === key)).filter(Boolean);
+  var issues = [];
+  sel.forEach(function(key) {
+    imported.forEach(function(i) { if (i.key === key) issues.push(i); });
+  });
   if (!issues.length) return;
-  const btn = document.getElementById('imp-sel');
+  var btn = document.getElementById('imp-sel');
   btn.disabled = true;
   btn.textContent = 'Importing…';
-  send('add-to-canvas', {issues});
+  send('add-to-canvas', {issues: issues, groupBy: groupBy});
 }
 
 function doSync(key) {
@@ -430,55 +474,124 @@ function doSync(key) {
     headers: apiHeaders(),
     body: JSON.stringify({jql: 'key = ' + key})
   })
-  .then(r => r.json())
-  .then(d => {
-    const fresh = d.issues && d.issues[0];
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    var fresh = d.issues && d.issues[0];
     if (!fresh) return;
-    imported = imported.map(i => i.key === key ? {
-      ...i,
-      status: fresh.fields && fresh.fields.status && fresh.fields.status.name || i.status,
-      summary: fresh.fields && fresh.fields.summary || i.summary,
-      assignee: fresh.fields && fresh.fields.assignee && fresh.fields.assignee.displayName || i.assignee,
-      points: fresh.fields && fresh.fields.customfield_10016 || i.points
-    } : i);
-    renderCanvas();
+    var normalized = normalizeIssue(fresh);
+    imported = imported.map(function(i) { return i.key === key ? normalized : i; });
+    renderList();
+    // Update canvas card if imported
+    var ids = nodeMap[key];
+    if (ids && ids.summaryId) {
+      send('update-canvas-card', {
+        key: key,
+        summaryId: ids.summaryId,
+        ptsId: ids.ptsId || null,
+        statusId: ids.statusId || null,
+        dotId: ids.dotId || null,
+        assigneeId: ids.assigneeId || null,
+        summary: normalized.summary,
+        points: normalized.points !== null && normalized.points !== undefined ? normalized.points : undefined,
+        status: normalized.status,
+        assignee: normalized.assignee
+      });
+    }
   })
-  .catch(() => {});
+  .catch(function() {});
 }
-function editCard(key) {alert('Edit drawer: Phase 2.1');}
 
-window.addEventListener('message', (evt) => {
-  const msg = evt.data.pluginMessage || evt.data;
+function syncAll() {
+  if (!imported.length) return;
+  var btn = document.getElementById('sync-all-btn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Syncing…';
+  var keys = imported.map(function(i) { return i.key; });
+  var jql = 'key in (' + keys.join(',') + ') ORDER BY key ASC';
+  fetch(API + '/api/jira-search', {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({jql: jql})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    btn.disabled = false;
+    btn.textContent = '↻ Sync All';
+    if (d.error) { alert('Sync failed: ' + d.error); return; }
+    var fresh = d.issues || [];
+    var freshMap = {};
+    fresh.forEach(function(raw) {
+      var n = normalizeIssue(raw);
+      freshMap[n.key] = n;
+    });
+    imported = imported.map(function(i) { return freshMap[i.key] || i; });
+    renderList();
+    // Update canvas cards for all that have nodeMap entries
+    imported.forEach(function(issue) {
+      var ids = nodeMap[issue.key];
+      if (!ids || !ids.summaryId) return;
+      send('update-canvas-card', {
+        key: issue.key,
+        summaryId: ids.summaryId,
+        ptsId: ids.ptsId || null,
+        statusId: ids.statusId || null,
+        dotId: ids.dotId || null,
+        assigneeId: ids.assigneeId || null,
+        summary: issue.summary,
+        points: issue.points !== null && issue.points !== undefined ? issue.points : undefined,
+        status: issue.status,
+        assignee: issue.assignee
+      });
+    });
+  })
+  .catch(function(e) {
+    btn.disabled = false;
+    btn.textContent = '↻ Sync All';
+    alert('Sync failed: ' + e.message);
+  });
+}
+
+window.addEventListener('message', function(evt) {
+  var msg = (evt.data && evt.data.pluginMessage) || evt.data;
   if (!msg || !msg.type) return;
 
-  if (msg.type === 'ready') {checkAuth();}
+  if (msg.type === 'ready') { checkAuth(); }
 
-  if (msg.type === 'session-data' && msg.instance && !authenticated) {
-    instance = msg.instance;
-    var inp = document.getElementById('instance-input');
-    if (inp) inp.value = msg.instance;
-    document.getElementById('auth-btn').textContent = '🔄 Reconnect to Jira';
-    document.getElementById('auth-btn').disabled = false;
-    document.getElementById('logout-btn').style.display = 'block';
+  if (msg.type === 'session-data') {
+    if (msg.instance && !authenticated) {
+      instance = msg.instance;
+      var inp = document.getElementById('instance-input');
+      if (inp) inp.value = msg.instance;
+      document.getElementById('auth-btn').textContent = '🔄 Reconnect to Jira';
+      document.getElementById('auth-btn').disabled = false;
+      document.getElementById('logout-btn').style.display = 'block';
+    }
   }
 
   if (msg.type === 'added-to-canvas') {
-    if (msg.nodeMap) Object.assign(nodeMap, msg.nodeMap);
-    const btn = document.getElementById('imp-sel');
+    if (msg.nodeMap) {
+      var k;
+      for (k in msg.nodeMap) { nodeMap[k] = msg.nodeMap[k]; }
+    }
+    var btn = document.getElementById('imp-sel');
     btn.disabled = false;
     btn.textContent = '✓ Imported ' + msg.count + ' issue' + (msg.count !== 1 ? 's' : '');
     setTimeout(function() {
       btn.textContent = 'Import Selected';
       btn.disabled = sel.size === 0;
-    }, 2000);
+    }, 2500);
     renderList();
   }
 
   if (msg.type === 'canvas-error') {
-    const btn = document.getElementById('imp-sel');
-    btn.disabled = false;
-    btn.textContent = 'Import Selected';
+    var btn2 = document.getElementById('imp-sel');
+    btn2.disabled = false;
+    btn2.textContent = 'Import Selected';
     alert('Canvas error: ' + msg.error);
+  }
+
+  if (msg.type === 'update-canvas-done') {
+    // no-op; confirmation that canvas node was updated
   }
 });
 
