@@ -262,7 +262,7 @@ function saveEdit() {
   status.textContent = '';
 
   const fields = { summary };
-  if (points !== '') fields['customfield_10016'] = parseFloat(points) || null;
+  if (points !== '' && !isNaN(parseFloat(points))) fields['customfield_10016'] = parseFloat(points);
 
   fetch(API + '/api/jira-update', {
     method: 'POST',
@@ -271,7 +271,17 @@ function saveEdit() {
   })
   .then(r => r.json())
   .then(d => {
-    if (!d.ok) throw new Error(d.error || 'Update failed');
+    if (!d.ok) {
+      if (d.code === 'auth_expired') {
+        btn.disabled = false;
+        btn.textContent = '💾 Save & Sync to Jira';
+        status.style.color = '#F87171';
+        status.textContent = 'Session expired — Disconnect and reconnect';
+        return;
+      }
+      const detail = d.detail ? JSON.stringify(d.detail) : '';
+      throw new Error((d.error || 'Update failed') + (detail ? ': ' + detail : ''));
+    }
     if (d.new_access_token) { _token = d.new_access_token; _refresh = d.new_refresh_token; }
     // Update local state
     imported = imported.map(i => i.key === editingKey ? Object.assign({}, i, {

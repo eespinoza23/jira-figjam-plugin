@@ -2,18 +2,26 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { getCloudId } from './_atlassian';
 
-async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string } | null> {
+async function tryRefresh(refreshToken: string): Promise<{ access_token: string; refresh_token: string } | null> {
   try {
-    const response = await axios.post('https://auth.atlassian.com/oauth/token', {
+    const r = await axios.post('https://auth.atlassian.com/oauth/token', {
       grant_type: 'refresh_token',
       client_id: process['env']['ATLASSIAN_CLIENT_ID'],
       client_secret: process['env']['ATLASSIAN_CLIENT_SECRET'],
       refresh_token: refreshToken,
     });
-    return response.data;
-  } catch (err) {
+    return r.data;
+  } catch {
     return null;
   }
+}
+
+async function patchIssue(cloudId: string, key: string, fields: object, token: string) {
+  return axios.put(
+    `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${key}`,
+    { fields },
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+  );
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -21,47 +29,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Refresh-Token');
   if (req.method === 'OPTIONS') return res.status(200).end();
-
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { key, fields } = req.body;
-  if (!key) return res.status(400).json({ error: 'Missing issue key' });
+  if (!key || !fields) return res.status(400).json({ error: 'Missing key or fields' });
 
   const authHeader = req.headers.authorization;
-  let accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
-  if (!accessToken) return res.status(401).json({ error: 'Not authenticated' });
+  let token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
+  if (!token) return res.status(401).json({ error: 'Not authenticated', code: 'no_token' });
 
-  const cloudId = req.cookies.cloud_id || await getCloudId(accessToken);
-  if (!cloudId) return res.status(401).json({ error: 'Could not resolve Jira cloud ID' });
+  let cloudId: string;
+  try {
+    cloudId = req.cookies.cloud_id || await getCloudId(token);
+    if (!cloudId) return res.status(401).json({ error: 'Could not resolve cloud ID', code: 'no_cloud_id' });
+  } catch (e: any) {
+    return res.status(401).json({ error: 'Cloud ID lookup failed', detail: e.message, code: 'cloud_id_error' });
+  }
 
   try {
-    const response = await axios.patch(
-      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${key}`,
-      { fields },
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    res.status(200).json({ ok: true });
+    await patchIssue(cloudId, key, fields, token);
+    return res.status(200).json({ ok: true });
   } catch (err: any) {
-    if (err.response?.status === 401) {
-      const refreshToken = req.headers['x-refresh-token'] as string || req.cookies.refresh_token;
-      if (!refreshToken) return res.status(401).json({ error: 'Session expired — reconnect' });
+    const status = err.response?.status;
+    const atlassianError = err.response?.data;
 
-      const newTokens = await refreshAccessToken(refreshToken);
-      if (!newTokens) return res.status(401).json({ error: 'Session expired — reconnect' });
+    // Not a token issue — surface the real error
+    if (status !== 401) {
+      console.error('Jira update failed:', status, atlassianError);
+      return res.status(status || 500).json({
+        error: 'Jira update failed',
+        status,
+        detail: atlassianError,
+      });
+    }
 
-      try {
-        const newCloudId = await getCloudId(newTokens.access_token);
-        await axios.patch(
-          `https://api.atlassian.com/ex/jira/${newCloudId}/rest/api/3/issue/${key}`,
-          { fields },
-          { headers: { Authorization: `Bearer ${newTokens.access_token}` } }
-        );
-        res.status(200).json({ ok: true, new_access_token: newTokens.access_token, new_refresh_token: newTokens.refresh_token });
-      } catch (retryErr: any) {
-        res.status(retryErr.response?.status || 500).json({ error: retryErr.message });
-      }
-    } else {
-      res.status(err.response?.status || 500).json({ error: err.message });
+    // 401 — try refresh once
+    const refreshToken = req.headers['x-refresh-token'] as string || req.cookies.refresh_token;
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Session expired', code: 'auth_expired' });
+    }
+
+    const newTokens = await tryRefresh(refreshToken);
+    if (!newTokens) {
+      return res.status(401).json({ error: 'Session expired', code: 'auth_expired' });
+    }
+
+    try {
+      const newCloudId = await getCloudId(newTokens.access_token);
+      await patchIssue(newCloudId, key, fields, newTokens.access_token);
+      return res.status(200).json({
+        ok: true,
+        new_access_token: newTokens.access_token,
+        new_refresh_token: newTokens.refresh_token,
+      });
+    } catch (retryErr: any) {
+      const retryStatus = retryErr.response?.status;
+      const retryDetail = retryErr.response?.data;
+      console.error('Jira update retry failed:', retryStatus, retryDetail);
+      return res.status(retryStatus || 500).json({
+        error: 'Update failed after token refresh',
+        status: retryStatus,
+        detail: retryDetail,
+        code: retryStatus === 401 ? 'auth_expired' : 'update_failed',
+      });
     }
   }
 }
