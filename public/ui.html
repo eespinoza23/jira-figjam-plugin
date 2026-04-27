@@ -90,8 +90,9 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 
   <div class="sec">
     <div class="lbl">JIRA INSTANCE</div>
-    <input id="instance-input" type="text" placeholder="eespinoza.atlassian.net" style="width:100%;padding:8px;border:1px solid #374151;border-radius:6px;font-family:monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;background:#0D1117;color:#93C5FD">
+    <input id="instance-input" type="text" placeholder="eespinoza.atlassian.net" value="eespinoza.atlassian.net" style="width:100%;padding:8px;border:1px solid #374151;border-radius:6px;font-family:monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px;background:#0D1117;color:#93C5FD">
     <button id="auth-btn" class="auth-btn" onclick="startAuth()">🔗 Connect to Jira</button>
+    <button id="logout-btn" onclick="doLogout()" style="display:none;width:100%;padding:7px;background:transparent;border:1px solid #374151;border-radius:6px;color:#6B7280;font-size:11px;cursor:pointer;margin-top:4px">Disconnect</button>
   </div>
 
   <div class="sec" id="code-sec">
@@ -270,11 +271,27 @@ function submitCode() {
 function showConnected() {
   document.getElementById('auth-btn').textContent = '✓ Connected';
   document.getElementById('auth-btn').disabled = true;
+  document.getElementById('logout-btn').style.display = 'block';
   document.getElementById('code-sec').style.display = 'none';
   document.getElementById('jql').style.display = 'block';
   document.getElementById('exec-btn').style.display = 'flex';
   document.getElementById('conn-status').style.display = 'flex';
   document.getElementById('inst-name').textContent = (instance || '').replace('.atlassian.net','');
+}
+function doLogout() {
+  _token = null; authenticated = false; instance = null; imported = []; sel = new Set();
+  send('clear-session');
+  document.getElementById('auth-btn').textContent = '🔗 Connect to Jira';
+  document.getElementById('auth-btn').disabled = false;
+  document.getElementById('logout-btn').style.display = 'none';
+  document.getElementById('conn-status').style.display = 'none';
+  document.getElementById('code-sec').style.display = 'none';
+  document.getElementById('jql').style.display = 'none';
+  document.getElementById('exec-btn').style.display = 'none';
+  document.getElementById('idle').style.display = 'flex';
+  document.getElementById('sel-bar').style.display = 'none';
+  document.getElementById('results-wrap').style.display = 'none';
+  document.getElementById('imp-sel').style.display = 'none';
 }
 function execJQL() {
   const jql = document.getElementById("jql").value.trim();
@@ -362,6 +379,11 @@ window.addEventListener('message', (evt) => {
 
   if (msg.type === 'session-data' && msg.instance && !authenticated) {
     instance = msg.instance;
+    var inp = document.getElementById('instance-input');
+    if (inp) inp.value = msg.instance;
+    document.getElementById('auth-btn').textContent = '🔄 Reconnect to Jira';
+    document.getElementById('auth-btn').disabled = false;
+    document.getElementById('logout-btn').style.display = 'block';
   }
 });
 
