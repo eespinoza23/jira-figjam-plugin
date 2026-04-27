@@ -17,7 +17,7 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
 .spin{animation:spin .75s linear infinite;display:inline-block}
 
 #app{display:flex;height:100vh;overflow:hidden}
-#panel{width:320px;flex-shrink:0;background:#16181F;border-right:1px solid #252830;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#panel{width:100%;background:#16181F;display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
 .p-head{padding:14px 16px 12px;border-bottom:1px solid #252830;background:#1C1E27;flex-shrink:0}
 .p-row{display:flex;align-items:center;gap:9px;margin-bottom:8px}
@@ -125,13 +125,6 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
   </div>
 </div>
 
-<div id="canvas-wrap">
-  <div id="cempty">
-    <div style="font-size:40px;opacity:.15">⬡</div>
-    <div style="font-size:11px;color:#C4C9D4;font-family:'IBM Plex Mono',monospace">Canvas is empty</div>
-  </div>
-  <div id="ccontent" data-size="M"></div>
-</div>
 </div>
 
 <script>
@@ -192,23 +185,7 @@ function buildCard(issue, delay=0) {
   </div>`;
 }
 
-function renderCanvas() {
-  const cc = document.getElementById("ccontent"), ce = document.getElementById("cempty");
-  if (!imported.length) {ce.style.display = "flex"; cc.style.display = "none"; return;}
-  ce.style.display = "none"; cc.style.display = "block";
-
-  const groups = ["Epic", "Feature", "Story", "Bug"]
-    .map(t => ({t, i: imported.filter(x => x.type === t)}))
-    .filter(g => g.i.length);
-
-  cc.innerHTML = groups.map(g => {
-    const tc = TC[g.t];
-    return `<div class="grp">
-      <div class="grp-title" style="color:${tc.c}">${tc.i} ${g.t.toUpperCase()}S (${g.i.length})</div>
-      <div class="cards-row">${g.i.map((x, i) => buildCard(x, i * 50)).join("")}</div>
-    </div>`;
-  }).join("");
-}
+function renderCanvas() {}
 
 function renderList() {
   const f = imported;

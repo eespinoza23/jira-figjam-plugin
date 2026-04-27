@@ -1,4 +1,4 @@
-figma.showUI(__html__, { width: 360, height: 600 });
+figma.showUI(__html__, { width: 360, height: 600, resizable: true });
 
 figma.ui.onmessage = async (msg) => {
 
