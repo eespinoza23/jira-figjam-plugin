@@ -1,5 +1,15 @@
 figma.showUI(__html__, { width: 380, height: 640 });
 
+// Reverse lookup: frameId → issue key, populated when cards are added to canvas
+var frameToKey = {};
+
+figma.on('selectionchange', function() {
+  var sel = figma.currentPage.selection;
+  if (sel.length !== 1) return;
+  var key = frameToKey[sel[0].id];
+  if (key) figma.ui.postMessage({ type: 'edit-card', key: key });
+});
+
 var TYPE_COLORS = {
   Epic: '#7C3AED', Feature: '#0284C7', Story: '#2563EB',
   Bug: '#DC2626', Task: '#059669', Subtask: '#0891B2'
@@ -262,6 +272,7 @@ figma.ui.onmessage = async function(msg) {
         var row  = Math.floor(i / cols);
         var ids  = await buildCard(gItems[i], startX + col * (cardW + cardGap), curY + row * (cardH + cardGap));
         nodeMap[gItems[i].key] = ids;
+        frameToKey[ids.frameId] = gItems[i].key;
         var frame = figma.getNodeById(ids.frameId);
         if (frame) allFrames.push(frame);
       }

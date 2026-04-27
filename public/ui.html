@@ -238,7 +238,7 @@ function renderList() {
           (issue.points ? '<span style="font-size:7px;color:#60A5FA;font-family:IBM Plex Mono,monospace">' + issue.points + 'pt</span>' : '') +
         '</div>' +
       '</div>' +
-      (hasCard ? '<button onclick="openEdit(\'' + issue.key + '\')" style="flex-shrink:0;background:#1E2430;border:1px solid #374151;border-radius:5px;color:#93C5FD;font-size:9px;padding:3px 7px;cursor:pointer;font-family:IBM Plex Mono,monospace;align-self:center">Edit</button>' : '') +
+      '<button onclick="openEdit(\'' + issue.key + '\')" style="flex-shrink:0;background:' + (hasCard ? '#0F2A4A' : '#1E2430') + ';border:1px solid ' + (hasCard ? '#1D4ED8' : '#374151') + ';border-radius:5px;color:' + (hasCard ? '#60A5FA' : '#93C5FD') + ';font-size:9px;padding:3px 7px;cursor:pointer;font-family:IBM Plex Mono,monospace;align-self:center" title="' + (hasCard ? 'Edit & sync to canvas + Jira' : 'Edit & sync to Jira') + '">' + (hasCard ? '✏ Edit' : 'Edit') + '</button>' +
     '</div>';
   }).join('');
 
@@ -592,6 +592,20 @@ window.addEventListener('message', function(evt) {
 
   if (msg.type === 'update-canvas-done') {
     // no-op; confirmation that canvas node was updated
+  }
+
+  if (msg.type === 'edit-card') {
+    // Fired when user clicks a card frame on the FigJam canvas
+    if (msg.key) {
+      // Make sure results panel is visible first
+      if (imported.some(function(i) { return i.key === msg.key; })) {
+        document.getElementById('idle').style.display = 'none';
+        document.getElementById('sel-bar').style.display = 'flex';
+        document.getElementById('results-wrap').style.display = 'flex';
+        document.getElementById('imp-sel').style.display = 'block';
+        openEdit(msg.key);
+      }
+    }
   }
 });
 
