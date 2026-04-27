@@ -309,10 +309,12 @@ function toggleAll() {
 }
 
 function importSel() {
-  [...sel].forEach(key => {
-    const issue = imported.find(i => i.key === key);
-    if (issue) send('add-to-canvas', {issue, x: Math.random()*200, y: Math.random()*200});
-  });
+  const issues = [...sel].map(key => imported.find(i => i.key === key)).filter(Boolean);
+  if (!issues.length) return;
+  const btn = document.getElementById('imp-sel');
+  btn.disabled = true;
+  btn.textContent = 'Importing…';
+  send('add-to-canvas', {issues});
 }
 
 function doSync(key) {
@@ -351,6 +353,23 @@ window.addEventListener('message', (evt) => {
     document.getElementById('auth-btn').textContent = '🔄 Reconnect to Jira';
     document.getElementById('auth-btn').disabled = false;
     document.getElementById('logout-btn').style.display = 'block';
+  }
+
+  if (msg.type === 'added-to-canvas') {
+    const btn = document.getElementById('imp-sel');
+    btn.disabled = false;
+    btn.textContent = '✓ Imported ' + msg.count + ' issue' + (msg.count !== 1 ? 's' : '');
+    setTimeout(function() {
+      btn.textContent = 'Import Selected';
+      btn.disabled = sel.size === 0;
+    }, 2000);
+  }
+
+  if (msg.type === 'canvas-error') {
+    const btn = document.getElementById('imp-sel');
+    btn.disabled = false;
+    btn.textContent = 'Import Selected';
+    alert('Canvas error: ' + msg.error);
   }
 });
 
