@@ -1,7 +1,7 @@
-figma.showUI(__html__, { width: 360, height: 600, resizable: true });
+figma.showUI(__html__, { width: 360, height: 600 });
 
 var COLORS = { Epic: '#7C3AED', Feature: '#0284C7', Story: '#2563EB', Bug: '#DC2626' };
-var ICONS  = { Epic: '⚡', Feature: '✨', Story: '📖', Bug: '🐛' };
+var ICONS  = { Epic: 'Epic', Feature: 'Feature', Story: 'Story', Bug: 'Bug' };
 
 function hexToRgb(hex) {
   return {
@@ -11,90 +11,93 @@ function hexToRgb(hex) {
   };
 }
 
+function trunc(str, max) {
+  if (!str) return '';
+  return str.length > max ? str.slice(0, max) + '...' : str;
+}
+
 async function buildCard(issue, x, y) {
-  var color  = COLORS[issue.type] || '#2563EB';
-  var cardW  = 280;
-  var cardH  = 130;
+  var color = COLORS[issue.type] || '#2563EB';
+  var cardW = 280;
+  var cardH = 130;
 
   var card = figma.createFrame();
   card.resize(cardW, cardH);
   card.x = x;
   card.y = y;
-  card.fills        = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
-  card.cornerRadius = 8;
+  card.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
+  card.strokes = [{ type: 'SOLID', color: hexToRgb('#E5E7EB') }];
   card.strokeWeight = 1.5;
-  card.strokes      = [{ type: 'SOLID', color: hexToRgb('#E5E7EB') }];
-  card.clipsContent = true;
-  card.name         = (issue.key || 'ISSUE') + ' — ' + (issue.summary || '').slice(0, 40);
+  card.cornerRadius = 8;
 
-  // Color accent bar
+  // Accent bar
   var accent = figma.createRectangle();
   accent.resize(cardW, 4);
-  accent.x = 0; accent.y = 0;
+  accent.x = 0;
+  accent.y = 0;
   accent.fills = [{ type: 'SOLID', color: hexToRgb(color) }];
   card.appendChild(accent);
 
-  // Issue key
+  // Key (top-left)
   var keyNode = figma.createText();
-  keyNode.fontName  = { family: 'Inter', style: 'Bold' };
-  keyNode.fontSize  = 9;
-  keyNode.fills     = [{ type: 'SOLID', color: hexToRgb(color) }];
+  keyNode.fontName = { family: 'Inter', style: 'Bold' };
+  keyNode.fontSize = 9;
+  keyNode.fills = [{ type: 'SOLID', color: hexToRgb(color) }];
   keyNode.characters = issue.key || '';
-  keyNode.x = 12; keyNode.y = 12;
   card.appendChild(keyNode);
+  keyNode.x = 12;
+  keyNode.y = 12;
 
-  // Type label (top-right)
+  // Type label (top-right, fixed offset)
   var typeNode = figma.createText();
-  typeNode.fontName   = { family: 'Inter', style: 'Regular' };
-  typeNode.fontSize   = 8;
-  typeNode.fills      = [{ type: 'SOLID', color: hexToRgb('#9CA3AF') }];
-  typeNode.characters = (ICONS[issue.type] || '') + ' ' + (issue.type || 'Story');
-  typeNode.x = cardW - 12 - typeNode.width;
-  typeNode.y = 12;
+  typeNode.fontName = { family: 'Inter', style: 'Regular' };
+  typeNode.fontSize = 8;
+  typeNode.fills = [{ type: 'SOLID', color: hexToRgb('#9CA3AF') }];
+  typeNode.characters = issue.type || 'Story';
   card.appendChild(typeNode);
+  typeNode.x = 200;
+  typeNode.y = 12;
 
-  // Summary
-  var summary = (issue.summary || '');
-  if (summary.length > 72) summary = summary.slice(0, 72) + '…';
+  // Summary (fixed width, truncated)
   var summaryNode = figma.createText();
-  summaryNode.fontName         = { family: 'Inter', style: 'Regular' };
-  summaryNode.fontSize         = 11;
-  summaryNode.fills            = [{ type: 'SOLID', color: hexToRgb('#111827') }];
-  summaryNode.textAutoResize   = 'HEIGHT';
-  summaryNode.resize(cardW - 24, 20);
-  summaryNode.characters       = summary;
-  summaryNode.x = 12; summaryNode.y = 30;
+  summaryNode.fontName = { family: 'Inter', style: 'Regular' };
+  summaryNode.fontSize = 11;
+  summaryNode.fills = [{ type: 'SOLID', color: hexToRgb('#111827') }];
+  summaryNode.characters = trunc(issue.summary, 80);
   card.appendChild(summaryNode);
+  summaryNode.x = 12;
+  summaryNode.y = 30;
 
   // Assignee (bottom-left)
   var assigneeNode = figma.createText();
-  assigneeNode.fontName   = { family: 'Inter', style: 'Regular' };
-  assigneeNode.fontSize   = 8;
-  assigneeNode.fills      = [{ type: 'SOLID', color: hexToRgb('#6B7280') }];
-  assigneeNode.characters = '👤 ' + (issue.assignee || 'Unassigned');
-  assigneeNode.x = 12; assigneeNode.y = cardH - 20;
+  assigneeNode.fontName = { family: 'Inter', style: 'Regular' };
+  assigneeNode.fontSize = 8;
+  assigneeNode.fills = [{ type: 'SOLID', color: hexToRgb('#6B7280') }];
+  assigneeNode.characters = trunc(issue.assignee || 'Unassigned', 20);
   card.appendChild(assigneeNode);
+  assigneeNode.x = 12;
+  assigneeNode.y = cardH - 20;
 
-  // Status (bottom-right)
+  // Status (bottom-right, fixed offset)
   var statusNode = figma.createText();
-  statusNode.fontName   = { family: 'Inter', style: 'Bold' };
-  statusNode.fontSize   = 8;
-  statusNode.fills      = [{ type: 'SOLID', color: hexToRgb('#059669') }];
-  statusNode.characters = issue.status || '';
-  statusNode.x = cardW - 12 - statusNode.width;
-  statusNode.y = cardH - 20;
+  statusNode.fontName = { family: 'Inter', style: 'Bold' };
+  statusNode.fontSize = 8;
+  statusNode.fills = [{ type: 'SOLID', color: hexToRgb('#059669') }];
+  statusNode.characters = trunc(issue.status, 16) || '';
   card.appendChild(statusNode);
+  statusNode.x = 160;
+  statusNode.y = cardH - 20;
 
-  // Points badge (if present)
+  // Points (if present)
   if (issue.points) {
     var ptsNode = figma.createText();
-    ptsNode.fontName   = { family: 'Inter', style: 'Bold' };
-    ptsNode.fontSize   = 8;
-    ptsNode.fills      = [{ type: 'SOLID', color: hexToRgb('#2563EB') }];
+    ptsNode.fontName = { family: 'Inter', style: 'Bold' };
+    ptsNode.fontSize = 8;
+    ptsNode.fills = [{ type: 'SOLID', color: hexToRgb('#2563EB') }];
     ptsNode.characters = String(issue.points) + 'pt';
-    ptsNode.x = statusNode.x - ptsNode.width - 8;
-    ptsNode.y = cardH - 20;
     card.appendChild(ptsNode);
+    ptsNode.x = 230;
+    ptsNode.y = cardH - 20;
   }
 
   figma.currentPage.appendChild(card);
@@ -142,42 +145,42 @@ figma.ui.onmessage = async function(msg) {
       groups[t].push(issue);
     });
 
-    var cardW    = 280;
-    var cardH    = 130;
-    var cardGap  = 16;
-    var cols     = 3;
-    var groupGap = 48;
-    var startX   = Math.round(figma.viewport.center.x - (cols * (cardW + cardGap)) / 2);
-    var startY   = Math.round(figma.viewport.center.y - 80);
-    var currentY = startY;
+    var cardW   = 280;
+    var cardH   = 130;
+    var cardGap = 16;
+    var cols    = 3;
+    var startX  = Math.round(figma.viewport.center.x - (cols * (cardW + cardGap)) / 2);
+    var startY  = Math.round(figma.viewport.center.y - 80);
+    var curY    = startY;
     var allNodes = [];
 
     for (var ti = 0; ti < typeOrder.length; ti++) {
-      var type        = typeOrder[ti];
-      var groupIssues = groups[type];
-      if (!groupIssues.length) continue;
+      var type   = typeOrder[ti];
+      var group  = groups[type];
+      if (!group.length) continue;
 
-      var labelNode = figma.createText();
-      labelNode.fontName   = { family: 'Inter', style: 'Bold' };
-      labelNode.fontSize   = 12;
-      labelNode.fills      = [{ type: 'SOLID', color: hexToRgb(COLORS[type] || '#2563EB') }];
-      labelNode.characters = (ICONS[type] || '') + ' ' + type.toUpperCase() + 'S (' + groupIssues.length + ')';
-      labelNode.x = startX; labelNode.y = currentY;
-      figma.currentPage.appendChild(labelNode);
-      allNodes.push(labelNode);
-      currentY += 28;
+      var label = figma.createText();
+      label.fontName = { family: 'Inter', style: 'Bold' };
+      label.fontSize = 12;
+      label.fills = [{ type: 'SOLID', color: hexToRgb(COLORS[type] || '#2563EB') }];
+      label.characters = type.toUpperCase() + 'S (' + group.length + ')';
+      figma.currentPage.appendChild(label);
+      label.x = startX;
+      label.y = curY;
+      allNodes.push(label);
+      curY += 28;
 
-      for (var i = 0; i < groupIssues.length; i++) {
+      for (var i = 0; i < group.length; i++) {
         var col  = i % cols;
         var row  = Math.floor(i / cols);
-        var cardX = startX + col * (cardW + cardGap);
-        var cardY = currentY + row * (cardH + cardGap);
-        var card  = await buildCard(groupIssues[i], cardX, cardY);
+        var cx   = startX + col * (cardW + cardGap);
+        var cy   = curY + row * (cardH + cardGap);
+        var card = await buildCard(group[i], cx, cy);
         allNodes.push(card);
       }
 
-      var rows = Math.ceil(groupIssues.length / cols);
-      currentY += rows * (cardH + cardGap) + groupGap;
+      var rows = Math.ceil(group.length / cols);
+      curY += rows * (cardH + cardGap) + 48;
     }
 
     figma.currentPage.selection = allNodes;
