@@ -1,5 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
+import { getCloudId } from './_atlassian';
 
 async function refreshAccessToken(req: VercelRequest, res: VercelResponse): Promise<string | null> {
   const refreshToken = req.cookies.refresh_token;
@@ -37,8 +38,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const authHeader = req.headers.authorization;
   let accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
-  const cloudId = req.cookies.cloud_id;
-  if (!accessToken || !cloudId) return res.status(401).json({ error: 'Not authenticated' });
+  if (!accessToken) return res.status(401).json({ error: 'Not authenticated' });
+
+  const cloudId = req.cookies.cloud_id || await getCloudId(accessToken);
+  if (!cloudId) return res.status(401).json({ error: 'Could not resolve Jira cloud ID' });
 
   try {
     const response = await axios.patch(
