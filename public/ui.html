@@ -284,7 +284,6 @@ function execJQL() {
   btn.innerHTML = '<span class="spin">⟳</span> Searching…';
   fetch(API + '/api/jira-search', {
     method: 'POST',
-    credentials: 'include',
     headers: apiHeaders(),
     body: JSON.stringify({jql})
   })
@@ -335,7 +334,6 @@ function importSel() {
 function doSync(key) {
   fetch(API + '/api/jira-search', {
     method: 'POST',
-    credentials: 'include',
     headers: apiHeaders(),
     body: JSON.stringify({jql: 'key = ' + key})
   })
