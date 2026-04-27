@@ -123,6 +123,24 @@ body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
     <div style="font-size:32px">⬡</div>
     <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;text-align:center;color:#2D3148">Connect to Jira then run a query</div>
   </div>
+
+  <div id="edit-drawer" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+    <div style="padding:12px 16px;border-bottom:1px solid #252830;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <button onclick="closeEdit()" style="background:none;border:none;color:#6B7280;cursor:pointer;font-size:16px;padding:0;line-height:1">←</button>
+      <div>
+        <div id="edit-key" style="font-size:10px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:#93C5FD"></div>
+        <div id="edit-type" style="font-size:8px;color:#6B7280;margin-top:1px"></div>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px">
+      <div class="lbl">SUMMARY</div>
+      <textarea id="edit-summary" rows="4" style="width:100%;background:#0D1117;border:1px solid #374151;border-radius:6px;color:#E2E8F0;font-size:11px;font-family:'Sora',sans-serif;padding:9px;resize:none;box-sizing:border-box;line-height:1.5;outline:none;margin-bottom:14px"></textarea>
+      <div class="lbl">STORY POINTS</div>
+      <input id="edit-points" type="number" min="0" max="100" style="width:100%;background:#0D1117;border:1px solid #374151;border-radius:6px;color:#E2E8F0;font-size:12px;font-family:'IBM Plex Mono',monospace;padding:8px;box-sizing:border-box;margin-bottom:20px;outline:none">
+      <button id="save-btn" onclick="saveEdit()" style="width:100%;background:linear-gradient(135deg,#059669,#10B981);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:11px 0;cursor:pointer;font-family:'Sora',sans-serif;margin-bottom:8px">💾 Save &amp; Sync to Jira</button>
+      <div id="edit-status" style="font-size:9px;text-align:center;color:#6B7280;font-family:'IBM Plex Mono',monospace;min-height:16px"></div>
+    </div>
+  </div>
 </div>
 
 </div>
@@ -133,7 +151,7 @@ const PC={Critical:"#EF4444",High:"#F97316",Medium:"#EAB308",Low:"#D1D5DB"};
 const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#2563EB"},Done:{bg:"#F0FDF4",c:"#16A34A"}};
 
 let sel=new Set(), imported=[], instance=null, authenticated=false;
-let _token = null;
+let _token = null, nodeMap = {}, editingKey = null;
 const API = 'https://jira-figjam-plugin.vercel.app';
 
 function send(type, data={}) {
@@ -192,18 +210,93 @@ function renderList() {
   document.getElementById("rlist").innerHTML = f.map(issue => {
     const tc = TC[issue.type] || TC.Story;
     const s = sel.has(issue.key);
-    return `<div class="irow${s?" sel":""}" style="--tc:${tc.c}" onclick="toggleIssue('${issue.key}')">
-      <div class="ichk${s?" on":""}">${s?"✓":""}</div>
-      <div style="flex:1">
-        <div style="font-size:8px;color:${tc.c};font-family:'IBM Plex Mono',monospace">${tc.i} ${issue.type}</div>
-        <div style="font-size:10px;color:#C9D1D9;font-weight:500">${issue.summary && issue.summary.substring(0,50)||""}</div>
+    const hasCard = !!nodeMap[issue.key];
+    return `<div class="irow${s?" sel":""}" style="--tc:${tc.c}">
+      <div class="ichk${s?" on":""}" onclick="toggleIssue('${issue.key}')">${s?"✓":""}</div>
+      <div style="flex:1;cursor:pointer" onclick="toggleIssue('${issue.key}')">
+        <div style="font-size:8px;color:${tc.c};font-family:'IBM Plex Mono',monospace">${tc.i} ${issue.key}</div>
+        <div style="font-size:10px;color:#C9D1D9;font-weight:500">${(issue.summary||"").substring(0,45)}</div>
       </div>
+      ${hasCard ? `<button onclick="openEdit('${issue.key}')" style="flex-shrink:0;background:#1E2430;border:1px solid #374151;border-radius:5px;color:#93C5FD;font-size:9px;padding:3px 7px;cursor:pointer;font-family:'IBM Plex Mono',monospace">Edit</button>` : ''}
     </div>`;
   }).join("");
 
   const sc = [...sel].filter(k => f.some(i => i.key === k)).length;
   document.getElementById("sel-lbl").textContent = `${sc} of ${f.length} selected`;
   document.getElementById("imp-sel").disabled = sel.size === 0;
+}
+
+function openEdit(key) {
+  const issue = imported.find(i => i.key === key);
+  if (!issue) return;
+  editingKey = key;
+  document.getElementById('edit-key').textContent = issue.key;
+  document.getElementById('edit-type').textContent = (TC[issue.type] || TC.Story).i + ' ' + issue.type;
+  document.getElementById('edit-summary').value = issue.summary || '';
+  document.getElementById('edit-points').value = issue.points || '';
+  document.getElementById('edit-status').textContent = '';
+  document.getElementById('results-wrap').style.display = 'none';
+  document.getElementById('sel-bar').style.display = 'none';
+  document.getElementById('idle').style.display = 'none';
+  document.getElementById('edit-drawer').style.display = 'flex';
+}
+
+function closeEdit() {
+  editingKey = null;
+  document.getElementById('edit-drawer').style.display = 'none';
+  document.getElementById('sel-bar').style.display = 'flex';
+  document.getElementById('results-wrap').style.display = 'flex';
+}
+
+function saveEdit() {
+  if (!editingKey) return;
+  const summary = document.getElementById('edit-summary').value.trim();
+  const points  = document.getElementById('edit-points').value;
+  const btn     = document.getElementById('save-btn');
+  const status  = document.getElementById('edit-status');
+  if (!summary) { alert('Summary cannot be empty'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  status.textContent = '';
+
+  const fields = { summary };
+  if (points !== '') fields['customfield_10016'] = parseFloat(points) || null;
+
+  fetch(API + '/api/jira-update', {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({ key: editingKey, fields })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (!d.ok) throw new Error(d.error || 'Update failed');
+    // Update local state
+    imported = imported.map(i => i.key === editingKey ? Object.assign({}, i, {
+      summary: summary,
+      points: points !== '' ? parseFloat(points) : i.points
+    }) : i);
+    // Update canvas card if it exists
+    const nodeId = nodeMap[editingKey];
+    if (nodeId) {
+      send('update-canvas-card', {
+        key: editingKey,
+        nodeId: nodeId,
+        summary: summary,
+        points: points !== '' ? parseFloat(points) : undefined
+      });
+    }
+    btn.disabled = false;
+    btn.textContent = '💾 Save & Sync to Jira';
+    status.style.color = '#4ADE80';
+    status.textContent = 'Synced to Jira ✓';
+  })
+  .catch(e => {
+    btn.disabled = false;
+    btn.textContent = '💾 Save & Sync to Jira';
+    status.style.color = '#F87171';
+    status.textContent = 'Error: ' + e.message;
+  });
 }
 
 function checkAuth() {
@@ -356,6 +449,7 @@ window.addEventListener('message', (evt) => {
   }
 
   if (msg.type === 'added-to-canvas') {
+    if (msg.nodeMap) Object.assign(nodeMap, msg.nodeMap);
     const btn = document.getElementById('imp-sel');
     btn.disabled = false;
     btn.textContent = '✓ Imported ' + msg.count + ' issue' + (msg.count !== 1 ? 's' : '');
@@ -363,6 +457,7 @@ window.addEventListener('message', (evt) => {
       btn.textContent = 'Import Selected';
       btn.disabled = sel.size === 0;
     }, 2000);
+    renderList();
   }
 
   if (msg.type === 'canvas-error') {
