@@ -230,16 +230,6 @@ function renderList() {
 }
 
 function checkAuth() {
-  fetch(API + '/api/jira-connect', {method:'GET', credentials:'include'})
-    .then(r => r.json())
-    .then(d => {
-      if (d.authenticated) {
-        authenticated = true;
-        instance = d.instance;
-        showConnected();
-      }
-    })
-    .catch(() => {});
   send('get-session');
 }
 function startAuth() {
