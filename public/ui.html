@@ -246,14 +246,14 @@ function startAuth() {
   let inst = document.getElementById('instance-input').value.trim();
   inst = inst.replace(/^https?:\/\//, '').replace(/\/$/, '');
   if (!inst) {alert('Enter your Jira instance (e.g., eespinoza.atlassian.net)'); return;}
-  window.open(API + '/api/jira-auth?instance=' + encodeURIComponent(inst));
+  send('open-external', {url: API + '/api/jira-auth?instance=' + encodeURIComponent(inst)});
+  document.getElementById('code-sec').style.display = 'block';
 }
 function submitCode() {
   const code = document.getElementById('verify-code-input').value.trim();
   if (!code) {alert('Paste the code from the browser first.'); return;}
   fetch(API + '/api/jira-connect', {
     method: 'POST',
-    credentials: 'include',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({code})
   })
