@@ -151,7 +151,7 @@ const PC={Critical:"#EF4444",High:"#F97316",Medium:"#EAB308",Low:"#D1D5DB"};
 const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#2563EB"},Done:{bg:"#F0FDF4",c:"#16A34A"}};
 
 let sel=new Set(), imported=[], instance=null, authenticated=false;
-let _token = null, nodeMap = {}, editingKey = null;
+let _token = null, _refresh = null, nodeMap = {}, editingKey = null;
 const API = 'https://jira-figjam-plugin.vercel.app';
 
 function send(type, data={}) {
@@ -161,6 +161,7 @@ function send(type, data={}) {
 function apiHeaders() {
   const h = {'Content-Type': 'application/json'};
   if (_token) h['Authorization'] = 'Bearer ' + _token;
+  if (_refresh) h['X-Refresh-Token'] = _refresh;
   return h;
 }
 
@@ -271,6 +272,7 @@ function saveEdit() {
   .then(r => r.json())
   .then(d => {
     if (!d.ok) throw new Error(d.error || 'Update failed');
+    if (d.new_access_token) { _token = d.new_access_token; _refresh = d.new_refresh_token; }
     // Update local state
     imported = imported.map(i => i.key === editingKey ? Object.assign({}, i, {
       summary: summary,
@@ -321,6 +323,7 @@ function submitCode() {
   .then(d => {
     if (!d.ok) throw new Error(d.error || 'Failed');
     _token = d.access_token;
+    _refresh = d.refresh_token;
     instance = d.instance;
     authenticated = true;
     send('save-session', {instance});

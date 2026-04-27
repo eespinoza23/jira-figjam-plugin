@@ -2,10 +2,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import { getCloudId } from './_atlassian';
 
-async function refreshAccessToken(req: VercelRequest, res: VercelResponse): Promise<string | null> {
-  const refreshToken = req.cookies.refresh_token;
-  if (!refreshToken) return null;
-
+async function refreshAccessToken(refreshToken: string): Promise<{ access_token: string; refresh_token: string } | null> {
   try {
     const response = await axios.post('https://auth.atlassian.com/oauth/token', {
       grant_type: 'refresh_token',
@@ -13,13 +10,7 @@ async function refreshAccessToken(req: VercelRequest, res: VercelResponse): Prom
       client_secret: process['env']['ATLASSIAN_CLIENT_SECRET'],
       refresh_token: refreshToken,
     });
-
-    res.setHeader('Set-Cookie', [
-      `access_token=${response.data.access_token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
-      `refresh_token=${response.data.refresh_token}; Path=/; HttpOnly; Secure; SameSite=Strict`,
-    ]);
-
-    return response.data.access_token;
+    return response.data;
   } catch (err) {
     return null;
   }
@@ -28,7 +19,7 @@ async function refreshAccessToken(req: VercelRequest, res: VercelResponse): Prom
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Refresh-Token');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -49,20 +40,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       { fields },
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-
-    res.status(200).json({ ok: true, issue: response.data });
+    res.status(200).json({ ok: true });
   } catch (err: any) {
     if (err.response?.status === 401) {
-      const newToken = await refreshAccessToken(req, res);
-      if (!newToken) return res.status(401).json({ error: 'Token refresh failed' });
+      const refreshToken = req.headers['x-refresh-token'] as string || req.cookies.refresh_token;
+      if (!refreshToken) return res.status(401).json({ error: 'Session expired — reconnect' });
+
+      const newTokens = await refreshAccessToken(refreshToken);
+      if (!newTokens) return res.status(401).json({ error: 'Session expired — reconnect' });
 
       try {
-        const retryResponse = await axios.patch(
-          `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${key}`,
+        const newCloudId = await getCloudId(newTokens.access_token);
+        await axios.patch(
+          `https://api.atlassian.com/ex/jira/${newCloudId}/rest/api/3/issue/${key}`,
           { fields },
-          { headers: { Authorization: `Bearer ${newToken}` } }
+          { headers: { Authorization: `Bearer ${newTokens.access_token}` } }
         );
-        res.status(200).json({ ok: true, issue: retryResponse.data });
+        res.status(200).json({ ok: true, new_access_token: newTokens.access_token, new_refresh_token: newTokens.refresh_token });
       } catch (retryErr: any) {
         res.status(retryErr.response?.status || 500).json({ error: retryErr.message });
       }
