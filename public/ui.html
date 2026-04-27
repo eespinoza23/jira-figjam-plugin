@@ -288,14 +288,15 @@ function saveEdit() {
       summary: summary,
       points: points !== '' ? parseFloat(points) : i.points
     }) : i);
-    // Update canvas card if it exists
-    const nodeId = nodeMap[editingKey];
-    if (nodeId) {
+    // Update canvas card if it exists — use stored child node IDs directly
+    const ids = nodeMap[editingKey];
+    if (ids && ids.summaryId) {
       send('update-canvas-card', {
         key: editingKey,
-        nodeId: nodeId,
+        summaryId: ids.summaryId,
+        ptsId: ids.ptsId || null,
         summary: summary,
-        points: points !== '' ? parseFloat(points) : undefined
+        points: points !== '' && !isNaN(parseFloat(points)) ? parseFloat(points) : undefined
       });
     }
     btn.disabled = false;
