@@ -227,6 +227,13 @@ function JiraIssueCard() {
             figma.openExternal(`${API_BASE}/api/jira-auth${inst ? '?instance=' + inst : ''}`);
           }
 
+          if (msg.type === 'clear-tokens') {
+            await Promise.all([
+              figma.clientStorage.deleteAsync(STORAGE_ACCESS_TOKEN),
+              figma.clientStorage.deleteAsync(STORAGE_REFRESH_TOKEN),
+            ]);
+          }
+
           // User pasted verification code from OAuth callback
           if (msg.type === 'verify-code' && msg.code) {
             try {
@@ -280,6 +287,12 @@ function JiraIssueCard() {
           }
           if (msg.type === 'cancel-edit') {
             figma.closePlugin();
+          }
+          if (msg.type === 'clear-tokens') {
+            await Promise.all([
+              figma.clientStorage.deleteAsync(STORAGE_ACCESS_TOKEN),
+              figma.clientStorage.deleteAsync(STORAGE_REFRESH_TOKEN),
+            ]);
           }
         };
       });

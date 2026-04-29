@@ -236,6 +236,40 @@
       parent.postMessage({ pluginMessage: { type, ...data } }, 'https://www.figma.com');
     }
 
+    function showAuthSection(notice) {
+      _token = null;
+      _refreshToken = null;
+      send('clear-tokens');
+      document.getElementById('edit-section').style.display = 'none';
+      document.getElementById('search-section').style.display = 'none';
+      document.getElementById('auth-connected').style.display = 'none';
+      document.getElementById('auth-connect').style.display = 'block';
+      document.getElementById('auth-section').style.display = 'block';
+      if (notice) {
+        var existing = document.getElementById('reauth-notice');
+        if (!existing) {
+          var el = document.createElement('div');
+          el.id = 'reauth-notice';
+          el.style.cssText = 'background:#FFEDEB; color:#AE2A19; padding:8px 10px; border-radius:6px; font-size:11px; margin-bottom:10px; border:1px solid #FF8F73;';
+          el.textContent = notice;
+          document.getElementById('auth-connect').insertBefore(el, document.getElementById('auth-connect').firstChild);
+        }
+      }
+    }
+
+    function handleAuthError() {
+      var editVisible = document.getElementById('edit-section').style.display !== 'none';
+      if (editVisible) {
+        var errEl = document.getElementById('edit-error');
+        errEl.innerHTML = 'Session expired. <a href="#" onclick="showAuthSection(\'Session expired — please re-connect.\'); return false;" style="color:#0c66e4; font-weight:600;">Re-connect to Jira</a>';
+        errEl.style.display = 'block';
+        var saveBtn = document.getElementById('save-btn');
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save to Jira'; }
+      } else {
+        showAuthSection('Session expired — please re-connect to Jira.');
+      }
+    }
+
     // Listen for messages from widget code
     window.onmessage = (e) => {
       const msg = e.data?.pluginMessage;
@@ -341,6 +375,7 @@
           body: JSON.stringify({ jql }),
         });
         const data = await res.json();
+        if (res.status === 401) { handleAuthError(); return; }
         if (!res.ok) throw new Error(data.error || 'Search failed');
         _issues = (data.issues || []).map(normalizeIssue);
         _selected.clear();
@@ -679,6 +714,7 @@
             body: JSON.stringify({ key: _editIssue.key, fields }),
           });
           const data = await res.json();
+          if (res.status === 401) { handleAuthError(); return; }
           if (!res.ok) throw new Error(data.error || 'Update failed');
         }
 
@@ -689,6 +725,7 @@
             body: JSON.stringify({ key: _editIssue.key, transitionId }),
           });
           const data = await res.json();
+          if (res.status === 401) { handleAuthError(); return; }
           if (!res.ok) throw new Error(data.error || 'Status change failed');
           updates.status = transitionName;
           // statusCategory will be refreshed on next sync
