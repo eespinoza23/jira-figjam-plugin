@@ -213,7 +213,8 @@ function JiraIssueCard() {
           }
 
           if (msg.type === 'open-auth') {
-            figma.openExternal(`${API_BASE}/api/jira-auth`);
+            const inst = msg.instance ? encodeURIComponent(msg.instance) : '';
+            figma.openExternal(`${API_BASE}/api/jira-auth${inst ? '?instance=' + inst : ''}`);
           }
 
           // User pasted verification code from OAuth callback

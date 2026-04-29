@@ -48,7 +48,9 @@
     <!-- Auth Section -->
     <div id="auth-section" class="section">
       <div id="auth-connect">
-        <button class="btn-primary" onclick="startAuth()">Connect to Jira</button>
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Jira Instance</label>
+        <input type="text" id="instance-input" placeholder="yourorg.atlassian.net" value="eespinoza.atlassian.net" style="width:100%; margin-bottom:8px; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+        <button class="btn-primary" onclick="startAuth()" style="width:100%;">Connect to Jira</button>
         <p class="auth-hint" style="margin-top:8px">Opens Atlassian OAuth in your browser.</p>
         <p class="auth-hint" style="margin-top:4px"><strong>Tip:</strong> If your browser is logged into a different Atlassian account,
           <a href="#" onclick="showAuthUrl(); return false;" style="color:#0c66e4;">show the auth URL</a>
@@ -150,29 +152,26 @@
     };
 
     // --- Auth flow ---
+    function getInstance() {
+      return (document.getElementById('instance-input').value || '').trim().replace(/^https?:\/\//,'').replace(/\/$/,'');
+    }
+
     function startAuth() {
-      send('open-auth');
-      // Show the verification code input
+      var inst = getInstance();
+      if (!inst) { alert('Enter your Jira instance first (e.g. yourorg.atlassian.net)'); return; }
+      send('open-auth', { instance: inst });
       document.getElementById('auth-connect').style.display = 'none';
       document.getElementById('auth-verify').style.display = 'block';
       document.getElementById('verify-code-input').focus();
     }
 
-    function copyAuthUrl() {
-      var url = API_BASE + '/api/jira-auth';
-      var input = document.getElementById('auth-url-input');
-      input.value = url;
-      document.getElementById('auth-url-box').style.display = 'block';
-      input.select();
-    }
-
     function showAuthUrl() {
-      var url = API_BASE + '/api/jira-auth';
+      var inst = getInstance();
+      var url = API_BASE + '/api/jira-auth' + (inst ? '?instance=' + encodeURIComponent(inst) : '');
       var input = document.getElementById('auth-url-input');
       input.value = url;
       document.getElementById('auth-url-box').style.display = 'block';
       input.select();
-      // Also show verify input
       document.getElementById('auth-verify').style.display = 'block';
     }
 
