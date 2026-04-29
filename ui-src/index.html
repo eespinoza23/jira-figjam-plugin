@@ -103,37 +103,47 @@
 
     <!-- Edit Section (shown when widget sends edit-mode) -->
     <div id="edit-section" style="display:none">
-      <h3 id="edit-title">Edit Issue</h3>
-      <div style="margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+        <span id="edit-type-badge" class="status-badge" style="display:inline-block;"></span>
+        <h3 id="edit-title" style="margin:0; font-size:13px;">Edit Issue</h3>
+      </div>
+      <div style="margin-bottom:10px;">
         <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Summary</label>
-        <input type="text" id="edit-summary" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+        <input type="text" id="edit-summary" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
       </div>
-      <div style="margin-bottom:12px;">
+      <div style="margin-bottom:10px;">
         <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Description</label>
-        <textarea id="edit-description" rows="3" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; resize:vertical; font-family:inherit;"></textarea>
+        <textarea id="edit-description" rows="3" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; resize:vertical; font-family:inherit;"></textarea>
       </div>
-      <div style="display:flex; gap:12px; margin-bottom:12px;">
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
         <div style="flex:1;">
-          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
-          <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Status</label>
+          <select id="edit-status-select" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
+            <option value="">Loading…</option>
+          </select>
         </div>
         <div style="flex:1;">
           <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Priority</label>
-          <select id="edit-priority" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
-            <option>Highest</option>
-            <option>High</option>
-            <option>Medium</option>
-            <option>Low</option>
-            <option>Lowest</option>
+          <select id="edit-priority" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
+            <option>Highest</option><option>High</option><option>Medium</option><option>Low</option><option>Lowest</option>
           </select>
         </div>
       </div>
-      <div style="margin-bottom:12px;">
-        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Status</label>
-        <span id="edit-status" class="status-badge" style="display:inline-block;"></span>
-        <span style="font-size:10px; color:#B3BAC5; margin-left:6px;">(change via Jira transitions — coming soon)</span>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
+          <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Assignee</label>
+          <div style="position:relative;">
+            <input type="text" id="edit-assignee" autocomplete="off" placeholder="Search users…" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; box-sizing:border-box;" oninput="searchAssignee(this.value)" />
+            <input type="hidden" id="edit-assignee-id" />
+            <div id="assignee-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #DFE1E6; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:100; max-height:140px; overflow-y:auto;"></div>
+          </div>
+        </div>
       </div>
-      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
         <button class="btn-sm" onclick="send('cancel-edit')">Cancel</button>
         <button class="btn-primary" id="save-btn" onclick="saveEdit()">Save to Jira</button>
       </div>
@@ -451,27 +461,103 @@
 
     // --- Edit mode ---
     let _editIssue = null;
+    let _selectedTransitionId = null;
+    let _assigneeDebounce = null;
 
     function enterEditMode(issue, token, instance) {
       _token = token;
       _editIssue = issue;
-      // Hide search UI, show edit UI
+      _selectedTransitionId = null;
+
       document.getElementById('auth-section').style.display = 'none';
       document.getElementById('search-section').style.display = 'none';
       document.getElementById('edit-section').style.display = 'block';
+
+      // Type badge
+      const typeBadge = document.getElementById('edit-type-badge');
+      const tc = typeColor(issue.issueType);
+      typeBadge.style.background = tc + '20';
+      typeBadge.style.color = tc;
+      typeBadge.textContent = issue.issueType;
 
       document.getElementById('edit-title').textContent = `Edit ${issue.key}`;
       document.getElementById('edit-summary').value = issue.summary;
       document.getElementById('edit-description').value = issue.description || '';
       document.getElementById('edit-points').value = issue.storyPoints != null ? issue.storyPoints : '';
       document.getElementById('edit-priority').value = issue.priority || 'Medium';
+      document.getElementById('edit-assignee').value = issue.assignee !== 'Unassigned' ? issue.assignee : '';
+      document.getElementById('edit-assignee-id').value = '';
 
-      const statusEl = document.getElementById('edit-status');
-      const sc = statusColor(issue.statusCategory);
-      statusEl.style.background = sc + '20';
-      statusEl.style.color = sc;
-      statusEl.textContent = issue.status;
+      // Status dropdown — load transitions async
+      const sel = document.getElementById('edit-status-select');
+      sel.innerHTML = `<option value="">— Keep: ${issue.status} —</option>`;
+      loadTransitions(issue.key);
     }
+
+    async function loadTransitions(key) {
+      try {
+        const headers = { Authorization: `Bearer ${_token}` };
+        if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
+        const res = await fetch(`${API_BASE}/api/jira-transitions?key=${encodeURIComponent(key)}`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        const sel = document.getElementById('edit-status-select');
+        sel.innerHTML = `<option value="">— Keep: ${_editIssue.status} —</option>`;
+        (data.transitions || []).forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name;
+          sel.appendChild(opt);
+        });
+      } catch {}
+    }
+
+    let _assigneeSearchAbort = null;
+    function searchAssignee(query) {
+      clearTimeout(_assigneeDebounce);
+      document.getElementById('edit-assignee-id').value = '';
+      if (!query || query.length < 2) {
+        document.getElementById('assignee-dropdown').style.display = 'none';
+        return;
+      }
+      _assigneeDebounce = setTimeout(async () => {
+        try {
+          const headers = { Authorization: `Bearer ${_token}` };
+          const res = await fetch(`${API_BASE}/api/jira-users?q=${encodeURIComponent(query)}`, { headers });
+          if (!res.ok) return;
+          const data = await res.json();
+          const dd = document.getElementById('assignee-dropdown');
+          dd.innerHTML = '';
+          if (!data.users || data.users.length === 0) {
+            dd.innerHTML = '<div style="padding:8px 12px; font-size:11px; color:#6B778C;">No users found</div>';
+          } else {
+            data.users.forEach(u => {
+              const row = document.createElement('div');
+              row.style.cssText = 'padding:7px 12px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px;';
+              row.innerHTML = u.avatarUrl
+                ? `<img src="${u.avatarUrl}" width="20" height="20" style="border-radius:50%;"> ${u.displayName}`
+                : u.displayName;
+              row.onmouseenter = () => row.style.background = '#F4F5F7';
+              row.onmouseleave = () => row.style.background = '';
+              row.onclick = () => {
+                document.getElementById('edit-assignee').value = u.displayName;
+                document.getElementById('edit-assignee-id').value = u.accountId;
+                dd.style.display = 'none';
+              };
+              dd.appendChild(row);
+            });
+          }
+          dd.style.display = 'block';
+        } catch {}
+      }, 300);
+    }
+
+    // Close assignee dropdown when clicking outside
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#edit-assignee') && !e.target.closest('#assignee-dropdown')) {
+        document.getElementById('assignee-dropdown').style.display = 'none';
+      }
+    });
 
     async function saveEdit() {
       if (!_editIssue || !_token) return;
@@ -484,6 +570,12 @@
       const newDescription = document.getElementById('edit-description').value.trim();
       const newPoints = document.getElementById('edit-points').value;
       const newPriority = document.getElementById('edit-priority').value;
+      const transitionId = document.getElementById('edit-status-select').value;
+      const transitionName = transitionId
+        ? document.getElementById('edit-status-select').options[document.getElementById('edit-status-select').selectedIndex].text
+        : null;
+      const newAssigneeId = document.getElementById('edit-assignee-id').value;
+      const newAssigneeName = document.getElementById('edit-assignee').value.trim();
 
       const fields = {};
       const updates = {};
@@ -492,45 +584,59 @@
         fields.summary = newSummary;
         updates.summary = newSummary;
       }
-
       if (newDescription !== (_editIssue.description || '')) {
-        // Jira ADF format for plain text description
         fields.description = {
           type: 'doc', version: 1,
           content: [{ type: 'paragraph', content: [{ type: 'text', text: newDescription || ' ' }] }]
         };
         updates.description = newDescription;
       }
-
       const pointsVal = newPoints === '' ? null : parseFloat(newPoints);
       if (pointsVal !== _editIssue.storyPoints) {
         fields.customfield_10016 = pointsVal;
         updates.storyPoints = pointsVal;
       }
-
       if (newPriority !== _editIssue.priority) {
         fields.priority = { name: newPriority };
         updates.priority = newPriority;
       }
+      if (newAssigneeId) {
+        fields.assignee = { accountId: newAssigneeId };
+        updates.assignee = newAssigneeName || _editIssue.assignee;
+      }
 
-      if (Object.keys(fields).length === 0) {
+      const hasFieldChanges = Object.keys(fields).length > 0;
+      if (!hasFieldChanges && !transitionId) {
         send('cancel-edit');
         return;
       }
 
+      const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}` };
+      if (_refreshToken) authHeaders['X-Refresh-Token'] = _refreshToken;
+
       try {
-        const updateHeaders = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${_token}`,
-        };
-        if (_refreshToken) updateHeaders['X-Refresh-Token'] = _refreshToken;
-        const res = await fetch(`${API_BASE}/api/jira-update`, {
-          method: 'POST',
-          headers: updateHeaders,
-          body: JSON.stringify({ key: _editIssue.key, fields }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Update failed');
+        // 1. Apply field updates
+        if (hasFieldChanges) {
+          const res = await fetch(`${API_BASE}/api/jira-update`, {
+            method: 'POST', headers: authHeaders,
+            body: JSON.stringify({ key: _editIssue.key, fields }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Update failed');
+        }
+
+        // 2. Apply status transition separately
+        if (transitionId) {
+          const res = await fetch(`${API_BASE}/api/jira-transitions`, {
+            method: 'POST', headers: authHeaders,
+            body: JSON.stringify({ key: _editIssue.key, transitionId }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Status change failed');
+          updates.status = transitionName;
+          // statusCategory will be refreshed on next sync
+        }
+
         send('save-issue', { key: _editIssue.key, updates });
       } catch (err) {
         document.getElementById('edit-error').textContent = err.message;
