@@ -254,7 +254,7 @@ function JiraIssueCard() {
 
     if (propertyName === 'edit-issue' && issue.key) {
       await new Promise<void>(() => {
-        figma.showUI(__html__, { width: 380, height: 520, title: `Edit ${issue.key}` });
+        figma.showUI(__html__, { width: 380, height: 580, title: `Edit ${issue.key}` });
 
         // Send current issue data + token to iframe in edit mode
         getStoredTokens().then(({ accessToken, refreshToken, instance }) => {

@@ -41,6 +41,10 @@
     .select-actions a:hover { text-decoration: underline; }
     .footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
     .sp-badge { font-size: 11px; color: #505F79; font-weight: 600; background: #F4F5F7; padding: 4px 8px; border-radius: 4px; }
+    .assignee-badge { width:20px; height:20px; border-radius:50%; background:#DFE1E6; color:#42526E; font-size:9px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .skeleton { background: linear-gradient(90deg, #F4F5F7 25%, #EBECF0 50%, #F4F5F7 75%); background-size:200% 100%; animation: shimmer 1.2s infinite; border-radius:4px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    .readonly-field { padding:7px 10px; border:1px solid #EBECF0; border-radius:6px; font-size:12px; background:#F4F5F7; color:#505F79; min-height:33px; }
   </style>
 </head>
 <body>
@@ -141,6 +145,20 @@
             <input type="hidden" id="edit-assignee-id" />
             <div id="assignee-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #DFE1E6; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:100; max-height:140px; overflow-y:auto;"></div>
           </div>
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Labels <span style="font-weight:400; color:#B3BAC5;">(comma-separated)</span></label>
+        <input type="text" id="edit-labels" placeholder="frontend, urgent, …" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Reporter</label>
+          <div id="edit-reporter" class="readonly-field"></div>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Sprint</label>
+          <div id="edit-sprint" class="readonly-field"></div>
         </div>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
@@ -300,8 +318,16 @@
       const btn = document.getElementById('exec-btn');
       btn.disabled = true;
       btn.textContent = 'Searching…';
-      document.getElementById('results').innerHTML = '<div class="msg">Searching…</div>';
       document.getElementById('results-header').style.display = 'none';
+      document.getElementById('results').innerHTML = [1,2,3,4,5].map(() =>
+        `<div class="issue-row" style="pointer-events:none;">
+          <span class="skeleton" style="width:14px;height:14px;flex-shrink:0;"></span>
+          <span class="skeleton" style="width:38px;height:12px;"></span>
+          <span class="skeleton" style="width:60px;height:12px;"></span>
+          <span class="skeleton" style="flex:1;height:12px;"></span>
+          <span class="skeleton" style="width:50px;height:18px;border-radius:9px;"></span>
+        </div>`
+      ).join('');
 
       try {
         const searchHeaders = {
@@ -352,6 +378,7 @@
         priorityIconUrl: f.priority?.iconUrl || '',
         priorityIconData: '',
         assignee: f.assignee?.displayName || 'Unassigned',
+        reporter: f.reporter?.displayName || '',
         storyPoints: f.customfield_10016 ?? null,
         sprint: extractSprint(f.customfield_10020),
         epicKey: f.parent?.key || f.customfield_10014 || null,
@@ -394,6 +421,12 @@
       return map[type] || '#626F86';
     }
 
+    function initials(name) {
+      if (!name || name === 'Unassigned') return '?';
+      const parts = name.trim().split(/\s+/);
+      return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
     // --- HTML escape to prevent XSS ---
     function esc(str) {
       var d = document.createElement('div');
@@ -421,6 +454,7 @@
           <span class="issue-summary" title="${esc(iss.summary)}">${esc(iss.summary)}</span>
           <span class="issue-pts">${iss.storyPoints != null ? esc(String(iss.storyPoints)) : ''}</span>
           <span class="status-badge" style="background:${statusColor(iss.statusCategory)}20; color:${statusColor(iss.statusCategory)}">${esc(iss.status)}</span>
+          <span class="assignee-badge" title="${esc(iss.assignee)}">${esc(initials(iss.assignee))}</span>
         </label>
       `).join('');
       updateFooter();
@@ -487,6 +521,9 @@
       document.getElementById('edit-priority').value = issue.priority || 'Medium';
       document.getElementById('edit-assignee').value = issue.assignee !== 'Unassigned' ? issue.assignee : '';
       document.getElementById('edit-assignee-id').value = '';
+      document.getElementById('edit-labels').value = (issue.labels || []).join(', ');
+      document.getElementById('edit-reporter').textContent = issue.reporter || 'Unknown';
+      document.getElementById('edit-sprint').textContent = issue.sprint || '—';
 
       // Status dropdown — show current as selected, load transitions as change options
       const sel = document.getElementById('edit-status-select');
@@ -582,6 +619,8 @@
       const newDescription = document.getElementById('edit-description').value.trim();
       const newPoints = document.getElementById('edit-points').value;
       const newPriority = document.getElementById('edit-priority').value;
+      const newLabelsRaw = document.getElementById('edit-labels').value.trim();
+      const newLabels = newLabelsRaw ? newLabelsRaw.split(',').map(l => l.trim()).filter(Boolean) : [];
       const transitionId = document.getElementById('edit-status-select').value;
       const transitionName = transitionId
         ? document.getElementById('edit-status-select').options[document.getElementById('edit-status-select').selectedIndex].text
@@ -615,6 +654,12 @@
       if (newAssigneeId) {
         fields.assignee = { accountId: newAssigneeId };
         updates.assignee = newAssigneeName || _editIssue.assignee;
+      }
+      const currentLabels = (_editIssue.labels || []).slice().sort();
+      const sortedNew = newLabels.slice().sort();
+      if (JSON.stringify(sortedNew) !== JSON.stringify(currentLabels)) {
+        fields.labels = newLabels;
+        updates.labels = newLabels;
       }
 
       const hasFieldChanges = Object.keys(fields).length > 0;
