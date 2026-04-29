@@ -1,0 +1,33 @@
+{
+  "name": "jira-figjam-plugin",
+  "version": "0.3.0",
+  "description": "Jira Multi-Import widget for FigJam with Vercel serverless backend",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "concurrently -n widget,ui 'npm run build:widget -- --watch' 'npm run build:ui -- --watch'",
+    "dev:vercel": "vercel dev",
+    "build": "npm run build:widget && npm run build:ui",
+    "build:widget": "esbuild widget-src/code.tsx --bundle --outfile=dist/code.js --target=es2017",
+    "build:ui": "vite build",
+    "build:vercel": "tsc --project api/tsconfig.json",
+    "deploy": "vercel",
+    "typecheck": "tsc --noEmit -p widget-src"
+  },
+  "dependencies": {
+    "axios": "^1.15.2",
+    "dotenv": "^16.4.2"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0",
+    "@figma/widget-typings": "^1.12.0",
+    "@types/node": "^20.14.0",
+    "concurrently": "^8.2.2",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.5",
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.0.0",
+    "vercel": "^34.2.0"
+  }
+}

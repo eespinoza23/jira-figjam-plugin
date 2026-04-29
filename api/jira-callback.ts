@@ -1,16 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
-import { createHmac } from 'crypto';
 
 const validateInstance = (i: string) => /^[a-z0-9-]+\.atlassian\.net$/.test(i.toLowerCase());
-
-function makeCode(payload: object): string {
-  const secret = process['env']['ATLASSIAN_CLIENT_SECRET'];
-  if (!secret) throw new Error('ATLASSIAN_CLIENT_SECRET not set');
-  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
-  const sig = createHmac('sha256', secret).update(data).digest('base64url');
-  return `${data}.${sig}`;
-}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -32,24 +23,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       redirect_uri: `https://${appUrl}/api/jira-callback`,
     });
 
-    const verifyCode = makeCode({
-      a: tok.data.access_token,
-      r: tok.data.refresh_token,
-      i: rawInstance.toLowerCase(),
-      x: Date.now() + 300000,
-      e: tok.data.expires_in,
-    });
-
     res.setHeader('Content-Type', 'text/html');
-    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Connected</title>
-<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}.card{background:white;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}h2{color:#16a34a;margin:0 0 8px}p{color:#4b5563;margin:0 0 20px}.code-box{background:#f9fafb;border:2px solid #e5e7eb;border-radius:8px;padding:16px;font-family:monospace;font-size:11px;word-break:break-all;color:#111827;margin:0 0 16px;text-align:left}button{background:#2563eb;color:white;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer;font-weight:600}.hint{font-size:12px;color:#9ca3af;margin-top:12px}</style>
+    res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Connecting…</title>
+<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}.card{background:white;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}h2{color:#16a34a;margin:0 0 8px}p{color:#4b5563;margin:0}spinner{display:inline-block;width:20px;height:20px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .6s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.hint{font-size:12px;color:#9ca3af;margin-top:12px}</style>
 </head><body><div class="card">
-<h2>&#10003; Connected to Jira!</h2>
-<p>Copy this code and paste it into the FigJam plugin.</p>
-<div class="code-box" id="vc">${verifyCode}</div>
-<button onclick="navigator.clipboard.writeText(document.getElementById('vc').textContent).then(()=>this.textContent='&#10003; Copied!')">Copy Code</button>
-<p class="hint">Expires in 5 minutes. Return to FigJam and paste it there.</p>
-</div></body></html>`);
+<h2><spinner></spinner></h2>
+<p>Connecting to Jira…</p>
+<p class="hint">You can close this window. The plugin will update automatically.</p>
+</div>
+<script>
+if (window.opener) {
+  window.opener.postMessage({
+    type: 'jira-auth-callback',
+    data: {
+      accessToken: '${tok.data.access_token}',
+      refreshToken: '${tok.data.refresh_token}',
+      instance: '${rawInstance.toLowerCase()}',
+      expiresIn: ${tok.data.expires_in}
+    }
+  }, '*');
+  setTimeout(() => { window.close(); }, 1500);
+} else {
+  document.querySelector('p').textContent = 'Connected! You can close this window.';
+  document.querySelector('.hint').textContent = 'Return to FigJam — the plugin will detect the connection.';
+}
+</script>
+</body></html>`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('Token exchange failed:', msg);

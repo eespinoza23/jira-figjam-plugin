@@ -7,10 +7,7 @@
     "api/jira-auth.ts"
   ],
   "domains": [],
-  "commands": [
-    "grep.*_token.*ui.html",
-    "grep.*access_token.*ui.html"
-  ],
+  "commands": [],
   "allowPatterns": [
     {
       "type": "env_reference",

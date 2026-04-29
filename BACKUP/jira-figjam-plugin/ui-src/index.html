@@ -41,10 +41,6 @@
     .select-actions a:hover { text-decoration: underline; }
     .footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
     .sp-badge { font-size: 11px; color: #505F79; font-weight: 600; background: #F4F5F7; padding: 4px 8px; border-radius: 4px; }
-    .assignee-badge { width:20px; height:20px; border-radius:50%; background:#DFE1E6; color:#42526E; font-size:9px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .skeleton { background: linear-gradient(90deg, #F4F5F7 25%, #EBECF0 50%, #F4F5F7 75%); background-size:200% 100%; animation: shimmer 1.2s infinite; border-radius:4px; }
-    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-    .readonly-field { padding:7px 10px; border:1px solid #EBECF0; border-radius:6px; font-size:12px; background:#F4F5F7; color:#505F79; min-height:33px; }
   </style>
 </head>
 <body>
@@ -65,12 +61,12 @@
         </div>
       </div>
       <div id="auth-verify" style="display:none">
-        <p class="auth-hint">Connecting to Jira… The browser window will close automatically.</p>
-        <div style="text-align:center; margin:16px 0;">
-          <div style="display:inline-block; width:24px; height:24px; border:3px solid #E5E7EB; border-top-color:#0c66e4; border-radius:50%; animation:spin 0.6s linear infinite;"></div>
+        <p class="auth-hint">Paste the verification code from the browser:</p>
+        <div class="code-input">
+          <input type="text" id="verify-code-input" placeholder="Paste code here…" />
+          <button class="btn-primary" id="verify-btn" onclick="submitCode()">Verify</button>
         </div>
         <p id="verify-error" class="error" style="margin-top:4px; font-size:11px; display:none"></p>
-        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
       </div>
       <div id="auth-connected" style="display:none">
         <span class="connected">✓ Connected to Jira</span>
@@ -107,63 +103,37 @@
 
     <!-- Edit Section (shown when widget sends edit-mode) -->
     <div id="edit-section" style="display:none">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-        <span id="edit-type-badge" class="status-badge" style="display:inline-block;"></span>
-        <h3 id="edit-title" style="margin:0; font-size:13px;">Edit Issue</h3>
-      </div>
-      <div style="margin-bottom:10px;">
+      <h3 id="edit-title">Edit Issue</h3>
+      <div style="margin-bottom:12px;">
         <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Summary</label>
-        <input type="text" id="edit-summary" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+        <input type="text" id="edit-summary" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
       </div>
-      <div style="margin-bottom:10px;">
+      <div style="margin-bottom:12px;">
         <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Description</label>
-        <textarea id="edit-description" rows="3" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; resize:vertical; font-family:inherit;"></textarea>
+        <textarea id="edit-description" rows="3" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; resize:vertical; font-family:inherit;"></textarea>
       </div>
-      <div style="display:flex; gap:10px; margin-bottom:10px;">
+      <div style="display:flex; gap:12px; margin-bottom:12px;">
         <div style="flex:1;">
-          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Status</label>
-          <select id="edit-status-select" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
-            <option value="">Loading…</option>
-          </select>
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
+          <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
         </div>
         <div style="flex:1;">
           <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Priority</label>
-          <select id="edit-priority" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
-            <option>Highest</option><option>High</option><option>Medium</option><option>Low</option><option>Lowest</option>
+          <select id="edit-priority" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
+            <option>Highest</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+            <option>Lowest</option>
           </select>
         </div>
       </div>
-      <div style="display:flex; gap:10px; margin-bottom:10px;">
-        <div style="flex:1;">
-          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
-          <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
-        </div>
-        <div style="flex:1;">
-          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Assignee</label>
-          <div style="position:relative;">
-            <input type="text" id="edit-assignee" autocomplete="off" placeholder="Search users…" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; box-sizing:border-box;" oninput="searchAssignee(this.value)" />
-            <input type="hidden" id="edit-assignee-id" />
-            <div id="assignee-dropdown" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid #DFE1E6; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,.1); z-index:100; max-height:140px; overflow-y:auto;"></div>
-          </div>
-        </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Status</label>
+        <span id="edit-status" class="status-badge" style="display:inline-block;"></span>
+        <span style="font-size:10px; color:#B3BAC5; margin-left:6px;">(change via Jira transitions — coming soon)</span>
       </div>
-      <div style="margin-bottom:10px;">
-        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Labels <span style="font-weight:400; color:#B3BAC5;">(comma-separated)</span></label>
-        <input type="text" id="edit-labels" placeholder="frontend, urgent, …" style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
-      </div>
-      <div style="display:flex; gap:10px; margin-bottom:10px;">
-        <div style="flex:1;">
-          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Reporter</label>
-          <div id="edit-reporter" class="readonly-field"></div>
-        </div>
-        <div style="flex:1;">
-          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Sprint</label>
-          <select id="edit-sprint-select" disabled style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
-            <option value="">Loading…</option>
-          </select>
-        </div>
-      </div>
-      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
         <button class="btn-sm" onclick="send('cancel-edit')">Cancel</button>
         <button class="btn-primary" id="save-btn" onclick="saveEdit()">Save to Jira</button>
       </div>
@@ -199,7 +169,6 @@
   <script>
     const API_BASE = 'https://jira-figjam-plugin.vercel.app';
     let _token = null;
-    let _refreshToken = null;
     let _issues = [];
     let _selected = new Set();
     const _iconCache = {};
@@ -235,41 +204,7 @@
     }
 
     function send(type, data) {
-      parent.postMessage({ pluginMessage: { type, ...data } }, 'https://www.figma.com');
-    }
-
-    function showAuthSection(notice) {
-      _token = null;
-      _refreshToken = null;
-      send('clear-tokens');
-      document.getElementById('edit-section').style.display = 'none';
-      document.getElementById('search-section').style.display = 'none';
-      document.getElementById('auth-connected').style.display = 'none';
-      document.getElementById('auth-connect').style.display = 'block';
-      document.getElementById('auth-section').style.display = 'block';
-      if (notice) {
-        var existing = document.getElementById('reauth-notice');
-        if (!existing) {
-          var el = document.createElement('div');
-          el.id = 'reauth-notice';
-          el.style.cssText = 'background:#FFEDEB; color:#AE2A19; padding:8px 10px; border-radius:6px; font-size:11px; margin-bottom:10px; border:1px solid #FF8F73;';
-          el.textContent = notice;
-          document.getElementById('auth-connect').insertBefore(el, document.getElementById('auth-connect').firstChild);
-        }
-      }
-    }
-
-    function handleAuthError() {
-      var editVisible = document.getElementById('edit-section').style.display !== 'none';
-      if (editVisible) {
-        var errEl = document.getElementById('edit-error');
-        errEl.innerHTML = 'Session expired. <a href="#" onclick="showAuthSection(\'Session expired — please re-connect.\'); return false;" style="color:#0c66e4; font-weight:600;">Re-connect to Jira</a>';
-        errEl.style.display = 'block';
-        var saveBtn = document.getElementById('save-btn');
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save to Jira'; }
-      } else {
-        showAuthSection('Session expired — please re-connect to Jira.');
-      }
+      parent.postMessage({ pluginMessage: { type, ...data } }, '*');
     }
 
     // Listen for messages from widget code
@@ -278,14 +213,12 @@
       if (!msg) return;
       if (msg.type === 'set-token') {
         _token = msg.token;
-        _refreshToken = msg.refreshToken || null;
         showConnected(msg.instance);
       }
       if (msg.type === 'auth-error') {
         showVerifyError(msg.error);
       }
       if (msg.type === 'edit-mode') {
-        _refreshToken = msg.refreshToken || _refreshToken;
         enterEditMode(msg.issue, msg.token, msg.instance);
       }
       if (msg.type === 'link-mode') {
@@ -301,41 +234,10 @@
     function startAuth() {
       var inst = getInstance();
       if (!inst) { alert('Enter your Jira instance first (e.g. yourorg.atlassian.net)'); return; }
-      openAuthWindow(inst);
+      send('open-auth', { instance: inst });
       document.getElementById('auth-connect').style.display = 'none';
       document.getElementById('auth-verify').style.display = 'block';
-    }
-
-    function openAuthWindow(instance) {
-      const url = API_BASE + '/api/jira-auth' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
-      const w = window.open(url, 'jira-auth', 'width=600,height=700');
-      if (!w) { alert('Failed to open auth window. Check pop-up blocker.'); return; }
-
-      // Listen for postMessage from callback window
-      const handleAuthCallback = (e) => {
-        if (e.data?.type === 'jira-auth-callback' && e.data?.data) {
-          window.removeEventListener('message', handleAuthCallback);
-          try {
-            const { accessToken, refreshToken, instance } = e.data.data;
-            if (accessToken && instance) {
-              // Send tokens to widget code.tsx
-              send('jira-auth-callback', { data: { accessToken, refreshToken, instance } });
-              // Close callback window if still open
-              if (w && !w.closed) w.close();
-            }
-          } catch (err) {
-            console.error('Auth callback error:', err);
-          }
-        }
-      };
-      window.addEventListener('message', handleAuthCallback);
-      // Clean up listener if window closes without sending message
-      const checkClosed = setInterval(() => {
-        if (w?.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', handleAuthCallback);
-        }
-      }, 1000);
+      document.getElementById('verify-code-input').focus();
     }
 
     function showAuthUrl() {
@@ -385,30 +287,19 @@
       const btn = document.getElementById('exec-btn');
       btn.disabled = true;
       btn.textContent = 'Searching…';
+      document.getElementById('results').innerHTML = '<div class="msg">Searching…</div>';
       document.getElementById('results-header').style.display = 'none';
-      document.getElementById('results').innerHTML = [1,2,3,4,5].map(() =>
-        `<div class="issue-row" style="pointer-events:none;">
-          <span class="skeleton" style="width:14px;height:14px;flex-shrink:0;"></span>
-          <span class="skeleton" style="width:38px;height:12px;"></span>
-          <span class="skeleton" style="width:60px;height:12px;"></span>
-          <span class="skeleton" style="flex:1;height:12px;"></span>
-          <span class="skeleton" style="width:50px;height:18px;border-radius:9px;"></span>
-        </div>`
-      ).join('');
 
       try {
-        const searchHeaders = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${_token}`,
-        };
-        if (_refreshToken) searchHeaders['X-Refresh-Token'] = _refreshToken;
         const res = await fetch(`${API_BASE}/api/jira-search`, {
           method: 'POST',
-          headers: searchHeaders,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${_token}`,
+          },
           body: JSON.stringify({ jql }),
         });
         const data = await res.json();
-        if (res.status === 401) { handleAuthError(); return; }
         if (!res.ok) throw new Error(data.error || 'Search failed');
         _issues = (data.issues || []).map(normalizeIssue);
         _selected.clear();
@@ -446,7 +337,6 @@
         priorityIconUrl: f.priority?.iconUrl || '',
         priorityIconData: '',
         assignee: f.assignee?.displayName || 'Unassigned',
-        reporter: f.reporter?.displayName || '',
         storyPoints: f.customfield_10016 ?? null,
         sprint: extractSprint(f.customfield_10020),
         epicKey: f.parent?.key || f.customfield_10014 || null,
@@ -478,21 +368,15 @@
       return active?.name || null;
     }
 
-    function statusStyle(category) {
-      if (category === 'done')          return { bg: '#DCFFF1', fg: '#216E4E' };
-      if (category === 'indeterminate') return { bg: '#DEEBFF', fg: '#0055CC' };
-      return { bg: '#F1F2F4', fg: '#626F86' };
+    function statusColor(category) {
+      if (category === 'done') return '#22a06b';
+      if (category === 'indeterminate') return '#0c66e4';
+      return '#626f86';
     }
 
     function typeColor(type) {
       const map = { Epic:'#904EE2', Feature:'#904EE2', Story:'#63BA3C', 'Tech Story':'#63BA3C', Bug:'#E5493A', Task:'#4BAEE8', Spike:'#F79232', Enabler:'#F79232' };
       return map[type] || '#626F86';
-    }
-
-    function initials(name) {
-      if (!name || name === 'Unassigned') return '?';
-      const parts = name.trim().split(/\s+/);
-      return parts.length === 1 ? parts[0][0].toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     }
 
     // --- HTML escape to prevent XSS ---
@@ -521,8 +405,7 @@
           <span class="issue-key">${esc(iss.key)}</span>
           <span class="issue-summary" title="${esc(iss.summary)}">${esc(iss.summary)}</span>
           <span class="issue-pts">${iss.storyPoints != null ? esc(String(iss.storyPoints)) : ''}</span>
-          <span class="status-badge" style="background:${statusStyle(iss.statusCategory).bg}; color:${statusStyle(iss.statusCategory).fg}">${esc(iss.status)}</span>
-          <span class="assignee-badge" title="${esc(iss.assignee)}">${esc(initials(iss.assignee))}</span>
+          <span class="status-badge" style="background:${statusColor(iss.statusCategory)}20; color:${statusColor(iss.statusCategory)}">${esc(iss.status)}</span>
         </label>
       `).join('');
       updateFooter();
@@ -563,162 +446,27 @@
 
     // --- Edit mode ---
     let _editIssue = null;
-    let _selectedTransitionId = null;
-    let _assigneeDebounce = null;
 
     function enterEditMode(issue, token, instance) {
       _token = token;
       _editIssue = issue;
-      _selectedTransitionId = null;
-
+      // Hide search UI, show edit UI
       document.getElementById('auth-section').style.display = 'none';
       document.getElementById('search-section').style.display = 'none';
       document.getElementById('edit-section').style.display = 'block';
-
-      // Type badge
-      const typeBadge = document.getElementById('edit-type-badge');
-      const tc = typeColor(issue.issueType);
-      typeBadge.style.background = tc + '20';
-      typeBadge.style.color = tc;
-      typeBadge.textContent = issue.issueType;
 
       document.getElementById('edit-title').textContent = `Edit ${issue.key}`;
       document.getElementById('edit-summary').value = issue.summary;
       document.getElementById('edit-description').value = issue.description || '';
       document.getElementById('edit-points').value = issue.storyPoints != null ? issue.storyPoints : '';
       document.getElementById('edit-priority').value = issue.priority || 'Medium';
-      document.getElementById('edit-assignee').value = issue.assignee !== 'Unassigned' ? issue.assignee : '';
-      document.getElementById('edit-assignee-id').value = '';
-      document.getElementById('edit-labels').value = (issue.labels || []).join(', ');
-      document.getElementById('edit-reporter').textContent = issue.reporter || 'Unknown';
-      const sprintSel = document.getElementById('edit-sprint-select');
-      sprintSel.innerHTML = '<option value="">Loading…</option>';
-      sprintSel.disabled = true;
-      loadSprints(issue.projectKey);
 
-      // Status dropdown — show current as selected, load transitions as change options
-      const sel = document.getElementById('edit-status-select');
-      sel.innerHTML = `<option value="" selected>${issue.status}</option>`;
-      sel.disabled = true;
-      loadTransitions(issue.key);
+      const statusEl = document.getElementById('edit-status');
+      const sc = statusColor(issue.statusCategory);
+      statusEl.style.background = sc + '20';
+      statusEl.style.color = sc;
+      statusEl.textContent = issue.status;
     }
-
-    async function loadTransitions(key) {
-      const sel = document.getElementById('edit-status-select');
-      try {
-        const headers = { Authorization: `Bearer ${_token}` };
-        if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
-        const res = await fetch(`${API_BASE}/api/jira-transitions?key=${encodeURIComponent(key)}`, { headers });
-        if (!res.ok) { sel.disabled = false; return; }
-        const data = await res.json();
-        const transitions = (data.transitions || []).filter(t => t.name !== _editIssue.status);
-        // Rebuild: current status as first selected option, then available transitions
-        sel.innerHTML = `<option value="" selected>${_editIssue.status}</option>`;
-        if (transitions.length > 0) {
-          const sep = document.createElement('option');
-          sep.disabled = true;
-          sep.textContent = '── Change to ──';
-          sel.appendChild(sep);
-          transitions.forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t.id;
-            opt.textContent = t.name;
-            sel.appendChild(opt);
-          });
-        }
-        sel.disabled = false;
-      } catch { sel.disabled = false; }
-    }
-
-    async function loadSprints(projectKey) {
-      const sel = document.getElementById('edit-sprint-select');
-      const fallback = `<option value="">${_editIssue.sprint || '— No Sprint —'}</option>`;
-      if (!sel || !projectKey) { if (sel) { sel.innerHTML = fallback; sel.disabled = false; } return; }
-      try {
-        const headers = { Authorization: `Bearer ${_token}` };
-        if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
-        const res = await fetch(`${API_BASE}/api/jira-sprints?project=${encodeURIComponent(projectKey)}`, { headers });
-        if (!res.ok) { sel.innerHTML = fallback; sel.disabled = false; return; }
-        const data = await res.json();
-        const sprints = data.sprints || [];
-        sel.innerHTML = '<option value="">— No Sprint —</option>';
-        // If current sprint not in list (e.g. completed), show it at top
-        const currentName = _editIssue.sprint;
-        const currentInList = sprints.find(s => s.name === currentName);
-        if (currentName && !currentInList) {
-          const opt = document.createElement('option');
-          opt.value = '__current__';
-          opt.textContent = currentName + ' (current)';
-          opt.selected = true;
-          sel.appendChild(opt);
-        }
-        const active = sprints.filter(s => s.state === 'active');
-        const future = sprints.filter(s => s.state === 'future');
-        [['Active', active], ['Future', future]].forEach(([label, list]) => {
-          if (!list.length) return;
-          const grp = document.createElement('optgroup');
-          grp.label = label;
-          list.forEach(s => {
-            const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.textContent = s.name;
-            if (s.name === currentName) opt.selected = true;
-            grp.appendChild(opt);
-          });
-          sel.appendChild(grp);
-        });
-        sel.disabled = false;
-      } catch { sel.innerHTML = fallback; sel.disabled = false; }
-    }
-
-    function searchAssignee(query) {
-      clearTimeout(_assigneeDebounce);
-      document.getElementById('edit-assignee-id').value = '';
-      const dd = document.getElementById('assignee-dropdown');
-      if (!query || query.length < 2) {
-        dd.style.display = 'none';
-        return;
-      }
-      dd.innerHTML = '<div style="padding:8px 12px; font-size:11px; color:#6B778C;">Searching…</div>';
-      dd.style.display = 'block';
-      _assigneeDebounce = setTimeout(async () => {
-        try {
-          const headers = { Authorization: `Bearer ${_token}` };
-          if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
-          const res = await fetch(`${API_BASE}/api/jira-users?q=${encodeURIComponent(query)}`, { headers });
-          if (!res.ok) { dd.style.display = 'none'; return; }
-          const data = await res.json();
-          dd.innerHTML = '';
-          if (!data.users || data.users.length === 0) {
-            dd.innerHTML = '<div style="padding:8px 12px; font-size:11px; color:#6B778C;">No users found</div>';
-          } else {
-            data.users.forEach(u => {
-              const row = document.createElement('div');
-              row.style.cssText = 'padding:7px 12px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px;';
-              row.innerHTML = u.avatarUrl
-                ? `<img src="${u.avatarUrl}" width="20" height="20" style="border-radius:50%; flex-shrink:0;"> <span>${u.displayName}</span>`
-                : `<span>${u.displayName}</span>`;
-              row.onmouseenter = () => row.style.background = '#F4F5F7';
-              row.onmouseleave = () => row.style.background = '';
-              row.onclick = () => {
-                document.getElementById('edit-assignee').value = u.displayName;
-                document.getElementById('edit-assignee-id').value = u.accountId;
-                dd.style.display = 'none';
-              };
-              dd.appendChild(row);
-            });
-          }
-          dd.style.display = 'block';
-        } catch {}
-      }, 300);
-    }
-
-    // Close assignee dropdown when clicking outside
-    document.addEventListener('click', e => {
-      if (!e.target.closest('#edit-assignee') && !e.target.closest('#assignee-dropdown')) {
-        document.getElementById('assignee-dropdown').style.display = 'none';
-      }
-    });
 
     async function saveEdit() {
       if (!_editIssue || !_token) return;
@@ -731,18 +479,6 @@
       const newDescription = document.getElementById('edit-description').value.trim();
       const newPoints = document.getElementById('edit-points').value;
       const newPriority = document.getElementById('edit-priority').value;
-      const newLabelsRaw = document.getElementById('edit-labels').value.trim();
-      const newLabels = newLabelsRaw ? newLabelsRaw.split(',').map(l => l.trim()).filter(Boolean) : [];
-      const transitionId = document.getElementById('edit-status-select').value;
-      const transitionName = transitionId
-        ? document.getElementById('edit-status-select').options[document.getElementById('edit-status-select').selectedIndex].text
-        : null;
-      const newAssigneeId = document.getElementById('edit-assignee-id').value;
-      const newAssigneeName = document.getElementById('edit-assignee').value.trim();
-      const sprintSel = document.getElementById('edit-sprint-select');
-      const newSprintId = sprintSel && sprintSel.value && sprintSel.value !== '__current__' ? sprintSel.value : '';
-      const newSprintName = newSprintId ? sprintSel.options[sprintSel.selectedIndex].text : '';
-      const sprintChanged = newSprintId && newSprintName !== (_editIssue.sprint || '');
 
       const fields = {};
       const updates = {};
@@ -751,78 +487,43 @@
         fields.summary = newSummary;
         updates.summary = newSummary;
       }
+
       if (newDescription !== (_editIssue.description || '')) {
+        // Jira ADF format for plain text description
         fields.description = {
           type: 'doc', version: 1,
           content: [{ type: 'paragraph', content: [{ type: 'text', text: newDescription || ' ' }] }]
         };
         updates.description = newDescription;
       }
+
       const pointsVal = newPoints === '' ? null : parseFloat(newPoints);
       if (pointsVal !== _editIssue.storyPoints) {
         fields.customfield_10016 = pointsVal;
         updates.storyPoints = pointsVal;
       }
+
       if (newPriority !== _editIssue.priority) {
         fields.priority = { name: newPriority };
         updates.priority = newPriority;
       }
-      if (newAssigneeId) {
-        fields.assignee = { accountId: newAssigneeId };
-        updates.assignee = newAssigneeName || _editIssue.assignee;
-      }
-      const currentLabels = (_editIssue.labels || []).slice().sort();
-      const sortedNew = newLabels.slice().sort();
-      if (JSON.stringify(sortedNew) !== JSON.stringify(currentLabels)) {
-        fields.labels = newLabels;
-        updates.labels = newLabels;
-      }
 
-      const hasFieldChanges = Object.keys(fields).length > 0;
-      if (!hasFieldChanges && !transitionId && !sprintChanged) {
+      if (Object.keys(fields).length === 0) {
         send('cancel-edit');
         return;
       }
 
-      const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${_token}` };
-      if (_refreshToken) authHeaders['X-Refresh-Token'] = _refreshToken;
-
       try {
-        // 1. Apply field updates
-        if (hasFieldChanges) {
-          const res = await fetch(`${API_BASE}/api/jira-update`, {
-            method: 'POST', headers: authHeaders,
-            body: JSON.stringify({ key: _editIssue.key, fields }),
-          });
-          const data = await res.json();
-          if (res.status === 401) { handleAuthError(); return; }
-          if (!res.ok) throw new Error(data.error || 'Update failed');
-        }
-
-        // 2. Apply status transition separately
-        if (transitionId) {
-          const res = await fetch(`${API_BASE}/api/jira-transitions`, {
-            method: 'POST', headers: authHeaders,
-            body: JSON.stringify({ key: _editIssue.key, transitionId }),
-          });
-          const data = await res.json();
-          if (res.status === 401) { handleAuthError(); return; }
-          if (!res.ok) throw new Error(data.error || 'Status change failed');
-          updates.status = transitionName;
-        }
-
-        // 3. Move sprint if changed
-        if (sprintChanged) {
-          const res = await fetch(`${API_BASE}/api/jira-sprints`, {
-            method: 'POST', headers: authHeaders,
-            body: JSON.stringify({ key: _editIssue.key, sprintId: parseInt(newSprintId) }),
-          });
-          const data = await res.json();
-          if (res.status === 401) { handleAuthError(); return; }
-          if (!res.ok) throw new Error(data.error || 'Sprint change failed');
-          updates.sprint = newSprintName;
-        }
-
+        const res = await fetch(`${API_BASE}/api/jira-update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${_token}`,
+          },
+          body: JSON.stringify({ key: _editIssue.key, fields }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Update failed');
         send('save-issue', { key: _editIssue.key, updates });
       } catch (err) {
         document.getElementById('edit-error').textContent = err.message;

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "figma.widget.h",
+    "jsxFragmentFactory": "figma.widget.Fragment",
+    "target": "es6",
+    "lib": ["es6", "es2015.promise"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "typeRoots": ["../node_modules/@figma"]
+  },
+  "include": ["./**/*.tsx", "./**/*.ts"]
+}

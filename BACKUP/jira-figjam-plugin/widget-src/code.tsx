@@ -209,9 +209,9 @@ function JiraIssueCard() {
         figma.showUI(__html__, { width: 420, height: 540, title: 'Jira Multi-Import' });
 
         // Send stored tokens to iframe on open
-        getStoredTokens().then(({ accessToken, refreshToken, instance }) => {
+        getStoredTokens().then(({ accessToken, instance }) => {
           if (accessToken) {
-            figma.ui.postMessage({ type: 'set-token', token: accessToken, refreshToken: refreshToken || '', instance: instance || '' });
+            figma.ui.postMessage({ type: 'set-token', token: accessToken, instance: instance || '' });
           }
         });
 
@@ -223,29 +223,8 @@ function JiraIssueCard() {
           }
 
           if (msg.type === 'open-auth') {
-            // Iframe will open auth window and handle postMessage callback
-            figma.ui.postMessage({ type: 'open-auth', instance: msg.instance });
-          }
-
-          if (msg.type === 'jira-auth-callback' && msg.data) {
-            // Callback data received from iframe (which received from auth window)
-            try {
-              const { accessToken, refreshToken, instance } = msg.data;
-              if (accessToken && instance) {
-                await storeTokens(accessToken, refreshToken, instance);
-                figma.ui.postMessage({ type: 'set-token', token: accessToken, instance });
-                figma.notify('Connected to Jira!');
-              }
-            } catch (e) {
-              figma.notify('Failed to store tokens');
-            }
-          }
-
-          if (msg.type === 'clear-tokens') {
-            await Promise.all([
-              figma.clientStorage.deleteAsync(STORAGE_ACCESS_TOKEN),
-              figma.clientStorage.deleteAsync(STORAGE_REFRESH_TOKEN),
-            ]);
+            const inst = msg.instance ? encodeURIComponent(msg.instance) : '';
+            figma.openExternal(`${API_BASE}/api/jira-auth${inst ? '?instance=' + inst : ''}`);
           }
 
           // User pasted verification code from OAuth callback
@@ -275,15 +254,14 @@ function JiraIssueCard() {
 
     if (propertyName === 'edit-issue' && issue.key) {
       await new Promise<void>(() => {
-        figma.showUI(__html__, { width: 380, height: 580, title: `Edit ${issue.key}` });
+        figma.showUI(__html__, { width: 380, height: 520, title: `Edit ${issue.key}` });
 
         // Send current issue data + token to iframe in edit mode
-        getStoredTokens().then(({ accessToken, refreshToken, instance }) => {
+        getStoredTokens().then(({ accessToken, instance }) => {
           figma.ui.postMessage({
             type: 'edit-mode',
             issue,
             token: accessToken,
-            refreshToken: refreshToken || '',
             instance: instance || '',
           });
         });
@@ -301,12 +279,6 @@ function JiraIssueCard() {
           }
           if (msg.type === 'cancel-edit') {
             figma.closePlugin();
-          }
-          if (msg.type === 'clear-tokens') {
-            await Promise.all([
-              figma.clientStorage.deleteAsync(STORAGE_ACCESS_TOKEN),
-              figma.clientStorage.deleteAsync(STORAGE_REFRESH_TOKEN),
-            ]);
           }
         };
       });

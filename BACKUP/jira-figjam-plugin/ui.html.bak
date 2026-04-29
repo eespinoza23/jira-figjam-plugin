@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Jira Multi-Import · FigJam Plugin</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Sora',sans-serif;background:#16181F;color:#E2E8F0}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:#374151;border-radius:4px}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.spin{animation:spin .75s linear infinite;display:inline-block}
+
+#app{display:flex;height:100vh;overflow:hidden}
+#panel{width:320px;flex-shrink:0;background:#16181F;border-right:1px solid #252830;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+.p-head{padding:14px 16px 12px;border-bottom:1px solid #252830;background:#1C1E27;flex-shrink:0}
+.p-row{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.p-ico{width:30px;height:30px;border-radius:7px;flex-shrink:0;background:linear-gradient(135deg,#1D4ED8,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:15px}
+.conn{display:flex;align-items:center;gap:6px;background:#0F2A1A;border:1px solid #166534;border-radius:6px;padding:5px 10px;font-size:9px;color:#4ADE80;font-family:'IBM Plex Mono',monospace;display:none}
+.conn-dot{width:5px;height:5px;border-radius:50%;background:#22C55E;flex-shrink:0}
+
+.sec{padding:12px 16px 0;flex-shrink:0}
+.lbl{font-size:9px;color:#6B7280;letter-spacing:.12em;font-family:'IBM Plex Mono',monospace;margin-bottom:6px}
+
+#jql{width:100%;background:#0D1117;border:1px solid #252830;border-radius:7px;color:#93C5FD;font-size:10px;font-family:'IBM Plex Mono',monospace;padding:9px 11px;resize:none;outline:none;line-height:1.65;display:none}
+#exec-btn{width:100%;margin-top:7px;background:linear-gradient(135deg,#1D4ED8,#2563EB);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;display:none;align-items:center;justify-content:center;gap:5px}
+#exec-btn:disabled{background:#1E2430;color:#4B5563;cursor:not-allowed}
+
+.auth-btn{width:100%;background:linear-gradient(135deg,#1D4ED8,#2563EB);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;display:flex;align-items:center;justify-content:center;gap:5px}
+
+#sel-bar{display:none;flex-shrink:0;align-items:stretch;background:#1A1D24;border-top:1px solid #252830;margin-top:10px}
+.sel-l{display:flex;align-items:center;gap:8px;padding:9px 16px;flex:1;cursor:pointer;user-select:none}
+.gchk{width:16px;height:16px;border-radius:4px;border:2px solid #374151;background:transparent;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:#fff;font-weight:700}
+
+#results-wrap{flex:1;display:none;flex-direction:column;overflow:hidden}
+#rlist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding:8px 16px}
+.irow{background:#0D1117;border:1px solid #1E2430;border-radius:7px;padding:8px 10px;cursor:pointer;display:flex;gap:9px;align-items:flex-start}
+.ichk{width:14px;height:14px;border-radius:3px;margin-top:2px;flex-shrink:0;border:2px solid #374151;background:transparent;display:flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700}
+
+#imp-sel{flex-shrink:0;margin:8px 16px 12px;background:#059669;border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;padding:10px 0;cursor:pointer;font-family:'Sora',sans-serif;width:calc(100% - 32px);display:none}
+#imp-sel:disabled{background:#1A1D24;color:#374151}
+
+#idle{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#2D3148}
+
+#canvas-wrap{flex:1;overflow-y:auto;background-color:#F0F2F5;background-image:radial-gradient(circle,#C9CDD4 1px,transparent 1px);background-size:24px 24px}
+
+#cempty{display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:14px}
+#ccontent{padding:28px 20px 80px;display:none}
+.grp{margin-bottom:36px}
+.grp-title{font-size:10px;font-weight:700;letter-spacing:.14em;font-family:'IBM Plex Mono',monospace}
+.cards-row{display:flex;flex-wrap:wrap;gap:12px}
+
+.card{width:248px;flex-shrink:0;background:#fff;border-radius:12px;border:1.5px solid #E5E7EB;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow:hidden;animation:fadeUp .3s ease forwards;cursor:pointer}
+.card:hover{box-shadow:0 8px 24px rgba(0,0,0,.11)}
+
+.c-accent{height:3px;width:100%}
+.c-compact{padding:10px 12px 9px;display:flex;flex-direction:column;gap:6px}
+.c-toprow{display:flex;justify-content:space-between;align-items:center}
+.c-type{font-size:8px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.c-acts{display:flex;align-items:center;gap:5px}
+.c-link{font-size:8px;font-weight:700;font-family:'IBM Plex Mono',monospace;text-decoration:none;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.c-sync{background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:14px;padding:2px 3px}
+.c-title{font-size:11px;font-weight:600;color:#111827;line-height:1.4}
+.c-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:1px}
+.m-avatar{width:18px;height:18px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:700}
+.m-status{font-size:8px;font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap}
+.m-pts{font-size:8px;font-weight:700;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:1px 5px;border-radius:4px;font-family:'IBM Plex Mono',monospace}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="panel">
+  <div class="p-head">
+    <div class="p-row">
+      <div class="p-ico">🔌</div>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:#F1F5F9">Jira Multi-Import</div>
+        <div style="font-size:9px;color:#4B5563;font-family:'IBM Plex Mono',monospace;margin-top:1px">for FigJam · Phase 2</div>
+      </div>
+    </div>
+    <div class="conn" id="conn-status"><div class="conn-dot"></div><span id="inst-name">Connected</span></div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">JIRA INSTANCE</div>
+    <input id="instance-input" type="text" placeholder="example.atlassian.net" style="width:100%;padding:8px;border:1px solid #D0D7DE;border-radius:6px;font-family:monospace;font-size:12px;box-sizing:border-box;margin-bottom:8px">
+    <button id="auth-btn" class="auth-btn" onclick="startAuth()">🔗 Connect to Jira</button>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">JQL QUERY</div>
+    <textarea id="jql" rows="3">status != Done ORDER BY updated DESC</textarea>
+    <button id="exec-btn" onclick="execJQL()">▶ Execute JQL</button>
+  </div>
+
+  <div id="sel-bar">
+    <div class="sel-l" onclick="toggleAll()">
+      <div class="gchk" id="gchk"></div>
+      <span id="sel-lbl" style="font-size:9px;color:#8B949E;font-family:'IBM Plex Mono',monospace">0 of 0 selected</span>
+    </div>
+  </div>
+
+  <div id="results-wrap">
+    <div id="rlist"></div>
+    <button id="imp-sel" onclick="importSel()">⬆ Import Selected</button>
+  </div>
+
+  <div id="idle">
+    <div style="font-size:32px">⬡</div>
+    <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;text-align:center;color:#2D3148">Connect to Jira then run a query</div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <div id="cempty">
+    <div style="font-size:40px;opacity:.15">⬡</div>
+    <div style="font-size:11px;color:#C4C9D4;font-family:'IBM Plex Mono',monospace">Canvas is empty</div>
+  </div>
+  <div id="ccontent" data-size="M"></div>
+</div>
+</div>
+
+<script>
+const TC={Epic:{c:"#7C3AED",i:"⚡"},Feature:{c:"#0284C7",i:"✨"},Story:{c:"#2563EB",i:"📖"},Bug:{c:"#DC2626",i:"🐛"}};
+const PC={Critical:"#EF4444",High:"#F97316",Medium:"#EAB308",Low:"#D1D5DB"};
+const SC={"To Do":{bg:"#F3F4F6",c:"#6B7280"},"In Progress":{bg:"#EFF6FF",c:"#2563EB"},Done:{bg:"#F0FDF4",c:"#16A34A"}};
+
+let sel=new Set(), imported=[], instance=null, authenticated=false;
+
+function send(type, data={}) {
+  window.parent.postMessage({type, ...data}, '*');
+}
+
+function ini(n) {
+  return (n && n !== "Unassigned") ? n.split(" ").map(x => x[0]).join("") : "?";
+}
+
+function av(name, color) {
+  const bg = name === "Unassigned" ? "#E5E7EB" : color + "22";
+  const br = name === "Unassigned" ? "#D1D5DB" : color + "55";
+  const fc = name === "Unassigned" ? "#9CA3AF" : color;
+  return `<div class="m-avatar" style="background:${bg};border:1.5px solid ${br};color:${fc}">${ini(name)}</div>`;
+}
+
+function buildCard(issue, delay=0) {
+  const tc = TC[issue.type] || TC.Story;
+  const sc = SC[issue.status] || SC["To Do"];
+  const pc = PC[issue.priority] || "#9CA3AF";
+  const assignee = issue.assignee || "Unassigned";
+
+  return `<div class="card" id="card-${issue.key}" style="animation-delay:${delay}ms" onclick="editCard('${issue.key}')">
+    <div class="c-accent" style="background:${tc.c}"></div>
+    <div class="c-compact">
+      <div class="c-toprow">
+        <div class="c-type" style="color:${tc.c}">${tc.i} ${(issue.type||"").toUpperCase()}</div>
+        <div class="c-acts">
+          <a class="c-link" href="https://${instance}/browse/${issue.key}" target="_blank" onclick="event.stopPropagation()">${issue.key} ↗</a>
+          <button class="c-sync" onclick="event.stopPropagation();doSync('${issue.key}')">↻</button>
+        </div>
+      </div>
+      <div class="c-title">${issue.summary || ""}</div>
+      <div class="c-meta">
+        ${av(assignee, tc.c)}
+        <div style="width:1px;height:10px;background:#E5E7EB;flex-shrink:0"></div>
+        <div style="width:7px;height:7px;border-radius:50%;background:${pc}"></div>
+        <span class="m-status" style="color:${sc.c};background:${sc.bg};border:1px solid ${sc.bg}">${issue.status||"To Do"}</span>
+        ${issue.points?`<span class="m-pts">${issue.points}p</span>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderCanvas() {
+  const cc = document.getElementById("ccontent"), ce = document.getElementById("cempty");
+  if (!imported.length) {ce.style.display = "flex"; cc.style.display = "none"; return;}
+  ce.style.display = "none"; cc.style.display = "block";
+
+  const groups = ["Epic", "Feature", "Story", "Bug"]
+    .map(t => ({t, i: imported.filter(x => x.type === t)}))
+    .filter(g => g.i.length);
+
+  cc.innerHTML = groups.map(g => {
+    const tc = TC[g.t];
+    return `<div class="grp">
+      <div class="grp-title" style="color:${tc.c}">${tc.i} ${g.t.toUpperCase()}S (${g.i.length})</div>
+      <div class="cards-row">${g.i.map((x, i) => buildCard(x, i * 50)).join("")}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderList() {
+  const f = imported;
+  document.getElementById("rlist").innerHTML = f.map(issue => {
+    const tc = TC[issue.type] || TC.Story;
+    const s = sel.has(issue.key);
+    return `<div class="irow${s?" sel":""}" style="--tc:${tc.c}" onclick="toggleIssue('${issue.key}')">
+      <div class="ichk${s?" on":""}">${s?"✓":""}</div>
+      <div style="flex:1">
+        <div style="font-size:8px;color:${tc.c};font-family:'IBM Plex Mono',monospace">${tc.i} ${issue.type}</div>
+        <div style="font-size:10px;color:#C9D1D9;font-weight:500">${issue.summary && issue.summary.substring(0,50)||""}</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  const sc = [...sel].filter(k => f.some(i => i.key === k)).length;
+  document.getElementById("sel-lbl").textContent = `${sc} of ${f.length} selected`;
+  document.getElementById("imp-sel").disabled = sel.size === 0;
+}
+
+function checkAuth() {send('check-auth');}
+function startAuth() {
+  const inst = document.getElementById('instance-input').value.trim();
+  if (!inst) {alert('Enter your Jira instance (e.g., mycompany.atlassian.net)'); return;}
+  window.open(`https://jira-figjam-plugin.vercel.app/api/jira-auth?instance=${encodeURIComponent(inst)}`);
+}
+function execJQL() {
+  const jql = document.getElementById("jql").value.trim();
+  if (!jql) return;
+  const btn = document.getElementById("exec-btn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin">⟳</span> Searching…`;
+  send('search-jira', {jql});
+}
+
+function toggleIssue(k) {sel.has(k) ? sel.delete(k) : sel.add(k); renderList();}
+function toggleAll() {
+  const all = [...imported].every(i => sel.has(i.key));
+  [...imported].forEach(i => all ? sel.delete(i.key) : sel.add(i.key));
+  renderList();
+}
+
+function importSel() {
+  [...sel].forEach(key => {
+    const issue = imported.find(i => i.key === key);
+    if (issue) send('add-to-canvas', {issue, x: Math.random()*200, y: Math.random()*200});
+  });
+}
+
+function doSync(key) {send('sync-issue', {key});}
+function editCard(key) {alert('Edit drawer: Phase 2.1');}
+
+window.addEventListener('message', (evt) => {
+  const msg = evt.data;
+
+  if (msg.type === 'ready') {checkAuth();}
+
+  if (msg.type === 'auth-checked') {
+    authenticated = msg.authenticated;
+    instance = msg.instance;
+    if (authenticated && instance) {
+      document.getElementById("auth-btn").textContent = "✓ Connected";
+      document.getElementById("auth-btn").disabled = true;
+      document.getElementById("jql").style.display = "block";
+      document.getElementById("exec-btn").style.display = "flex";
+      document.getElementById("conn-status").style.display = "flex";
+      document.getElementById("inst-name").textContent = instance.replace(".atlassian.net", "");
+    }
+  }
+
+  if (msg.type === 'search-results') {
+    const btn = document.getElementById("exec-btn");
+    btn.disabled = false;
+    btn.innerHTML = "▶ Execute JQL";
+
+    imported = (msg.issues || []).map(issue => ({
+      key: issue.key,
+      type: issue.fields && issue.fields.issuetype && issue.fields.issuetype.name || "Story",
+      status: issue.fields && issue.fields.status && issue.fields.status.name || "To Do",
+      priority: issue.fields && issue.fields.priority && issue.fields.priority.name || "Medium",
+      summary: issue.fields && issue.fields.summary || "",
+      assignee: issue.fields && issue.fields.assignee && issue.fields.assignee.displayName || "Unassigned",
+      points: issue.fields && issue.fields.customfield_10016 || issue.fields && issue.fields.story_points
+    }));
+
+    document.getElementById("idle").style.display = "none";
+    document.getElementById("sel-bar").style.display = "flex";
+    document.getElementById("results-wrap").style.display = "flex";
+    document.getElementById("imp-sel").style.display = "block";
+    sel = new Set();
+    renderList();
+    renderCanvas();
+  }
+
+  if (msg.type === 'sync-result') {
+    if (msg.issue) {
+      imported = imported.map(i => i.key === msg.key ? {
+        ...i,
+        status: msg.issue.fields && msg.issue.fields.status && msg.issue.fields.status.name || i.status,
+        summary: msg.issue.fields && msg.issue.fields.summary || i.summary,
+        assignee: msg.issue.fields && msg.issue.fields.assignee && msg.issue.fields.assignee.displayName || i.assignee,
+        points: msg.issue.fields && msg.issue.fields.customfield_10016 || i.points
+      } : i);
+      renderCanvas();
+    }
+  }
+});
+
+checkAuth();
+</script>
+</body>
+</html>
