@@ -488,45 +488,57 @@
       document.getElementById('edit-assignee').value = issue.assignee !== 'Unassigned' ? issue.assignee : '';
       document.getElementById('edit-assignee-id').value = '';
 
-      // Status dropdown — load transitions async
+      // Status dropdown — show current as selected, load transitions as change options
       const sel = document.getElementById('edit-status-select');
-      sel.innerHTML = `<option value="">— Keep: ${issue.status} —</option>`;
+      sel.innerHTML = `<option value="" selected>${issue.status}</option>`;
+      sel.disabled = true;
       loadTransitions(issue.key);
     }
 
     async function loadTransitions(key) {
+      const sel = document.getElementById('edit-status-select');
       try {
         const headers = { Authorization: `Bearer ${_token}` };
         if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
         const res = await fetch(`${API_BASE}/api/jira-transitions?key=${encodeURIComponent(key)}`, { headers });
-        if (!res.ok) return;
+        if (!res.ok) { sel.disabled = false; return; }
         const data = await res.json();
-        const sel = document.getElementById('edit-status-select');
-        sel.innerHTML = `<option value="">— Keep: ${_editIssue.status} —</option>`;
-        (data.transitions || []).forEach(t => {
-          const opt = document.createElement('option');
-          opt.value = t.id;
-          opt.textContent = t.name;
-          sel.appendChild(opt);
-        });
-      } catch {}
+        const transitions = (data.transitions || []).filter(t => t.name !== _editIssue.status);
+        // Rebuild: current status as first selected option, then available transitions
+        sel.innerHTML = `<option value="" selected>${_editIssue.status}</option>`;
+        if (transitions.length > 0) {
+          const sep = document.createElement('option');
+          sep.disabled = true;
+          sep.textContent = '── Change to ──';
+          sel.appendChild(sep);
+          transitions.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name;
+            sel.appendChild(opt);
+          });
+        }
+        sel.disabled = false;
+      } catch { sel.disabled = false; }
     }
 
-    let _assigneeSearchAbort = null;
     function searchAssignee(query) {
       clearTimeout(_assigneeDebounce);
       document.getElementById('edit-assignee-id').value = '';
+      const dd = document.getElementById('assignee-dropdown');
       if (!query || query.length < 2) {
-        document.getElementById('assignee-dropdown').style.display = 'none';
+        dd.style.display = 'none';
         return;
       }
+      dd.innerHTML = '<div style="padding:8px 12px; font-size:11px; color:#6B778C;">Searching…</div>';
+      dd.style.display = 'block';
       _assigneeDebounce = setTimeout(async () => {
         try {
           const headers = { Authorization: `Bearer ${_token}` };
+          if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
           const res = await fetch(`${API_BASE}/api/jira-users?q=${encodeURIComponent(query)}`, { headers });
-          if (!res.ok) return;
+          if (!res.ok) { dd.style.display = 'none'; return; }
           const data = await res.json();
-          const dd = document.getElementById('assignee-dropdown');
           dd.innerHTML = '';
           if (!data.users || data.users.length === 0) {
             dd.innerHTML = '<div style="padding:8px 12px; font-size:11px; color:#6B778C;">No users found</div>';
@@ -535,8 +547,8 @@
               const row = document.createElement('div');
               row.style.cssText = 'padding:7px 12px; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:8px;';
               row.innerHTML = u.avatarUrl
-                ? `<img src="${u.avatarUrl}" width="20" height="20" style="border-radius:50%;"> ${u.displayName}`
-                : u.displayName;
+                ? `<img src="${u.avatarUrl}" width="20" height="20" style="border-radius:50%; flex-shrink:0;"> <span>${u.displayName}</span>`
+                : `<span>${u.displayName}</span>`;
               row.onmouseenter = () => row.style.background = '#F4F5F7';
               row.onmouseleave = () => row.style.background = '';
               row.onclick = () => {
