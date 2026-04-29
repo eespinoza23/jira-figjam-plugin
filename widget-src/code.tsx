@@ -74,8 +74,10 @@ interface IssueData {
   statusCategory: string;
   issueType: string;
   issueTypeIconUrl: string;
+  issueTypeIconData: string; // base64 data URL fetched by iframe
   priority: string;
   priorityIconUrl: string;
+  priorityIconData: string;  // base64 data URL fetched by iframe
   assignee: string;
   storyPoints: number | null;
   sprint: string | null;
@@ -92,8 +94,10 @@ const EMPTY_ISSUE: IssueData = {
   statusCategory: 'new',
   issueType: 'Task',
   issueTypeIconUrl: '',
+  issueTypeIconData: '',
   priority: 'Medium',
   priorityIconUrl: '',
+  priorityIconData: '',
   assignee: 'Unassigned',
   storyPoints: null,
   sprint: null,
@@ -167,6 +171,12 @@ function JiraIssueCard() {
         tooltip: 'Edit Issue',
         icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`,
       },
+      {
+        itemType: 'action',
+        propertyName: 'link-issue',
+        tooltip: 'Link to Card',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.5 9.5a3.5 3.5 0 0 0 5 0l2-2a3.5 3.5 0 0 0-5-5L7 4" stroke="white" stroke-width="1.5" stroke-linecap="round"/><path d="M9.5 6.5a3.5 3.5 0 0 0-5 0l-2 2a3.5 3.5 0 0 0 5 5L9 12" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+      },
     );
   }
 
@@ -199,16 +209,16 @@ function JiraIssueCard() {
         figma.showUI(__html__, { width: 420, height: 540, title: 'Jira Multi-Import' });
 
         // Send stored tokens to iframe on open
-        getStoredTokens().then(({ accessToken, instance }) => {
+        getStoredTokens().then(({ accessToken, refreshToken, instance }) => {
           if (accessToken) {
-            figma.ui.postMessage({ type: 'set-token', token: accessToken, instance: instance || '' });
+            figma.ui.postMessage({ type: 'set-token', token: accessToken, refreshToken: refreshToken || '', instance: instance || '' });
           }
         });
 
         figma.ui.onmessage = async (msg: any) => {
           if (msg.type === 'add-issues' && msg.issues) {
-            const normalized = (msg.issues as any[]).map(normalizeIssue);
-            await createIssueCards(normalized, widgetId);
+            // Issues are already normalized by ui-src/index.html before sending
+            await createIssueCards(msg.issues as IssueData[], widgetId);
             figma.closePlugin();
           }
 
@@ -244,14 +254,15 @@ function JiraIssueCard() {
 
     if (propertyName === 'edit-issue' && issue.key) {
       await new Promise<void>(() => {
-        figma.showUI(__html__, { width: 360, height: 320, title: `Edit ${issue.key}` });
+        figma.showUI(__html__, { width: 380, height: 520, title: `Edit ${issue.key}` });
 
         // Send current issue data + token to iframe in edit mode
-        getStoredTokens().then(({ accessToken, instance }) => {
+        getStoredTokens().then(({ accessToken, refreshToken, instance }) => {
           figma.ui.postMessage({
             type: 'edit-mode',
             issue,
             token: accessToken,
+            refreshToken: refreshToken || '',
             instance: instance || '',
           });
         });
@@ -305,6 +316,48 @@ function JiraIssueCard() {
         figma.notify('Sync failed for ' + issue.key);
       }
     }
+
+    if (propertyName === 'link-issue' && issue.key) {
+      await new Promise<void>(() => {
+        // Find all other widget instances on the current page
+        var allWidgets = figma.currentPage.findAll(function(n) {
+          return n.type === 'WIDGET' && n.id !== widgetId;
+        }) as WidgetNode[];
+        var targets = allWidgets
+          .filter(function(w) { return w.name && w.name.indexOf('-') !== -1; })
+          .map(function(w) { return { id: w.id, key: w.name }; });
+
+        figma.showUI(__html__, { width: 360, height: 260, title: 'Link ' + issue.key });
+        figma.ui.postMessage({ type: 'link-mode', targets: targets, sourceKey: issue.key });
+
+        figma.ui.onmessage = async function(msg: any) {
+          if (msg.type === 'create-link') {
+            var targetNode = await figma.getNodeByIdAsync(msg.targetId) as SceneNode | null;
+            var sourceNode = await figma.getNodeByIdAsync(widgetId) as SceneNode | null;
+            if (targetNode && sourceNode) {
+              var connector = figma.createConnector();
+              connector.connectorStart = { endpointNodeId: widgetId, magnet: 'AUTO' };
+              connector.connectorEnd = { endpointNodeId: msg.targetId, magnet: 'AUTO' };
+              connector.strokeWeight = 2;
+              var linkColors: Record<string, { r: number; g: number; b: number }> = {
+                'blocks':        { r: 0.90, g: 0.28, b: 0.23 },
+                'is blocked by': { r: 0.90, g: 0.28, b: 0.23 },
+                'depends on':    { r: 1.00, g: 0.67, b: 0.00 },
+                'relates to':    { r: 0.05, g: 0.40, b: 0.90 },
+                'duplicates':    { r: 0.39, g: 0.44, b: 0.52 },
+              };
+              var linkColor = linkColors[msg.linkType] || linkColors['relates to'];
+              connector.strokes = [{ type: 'SOLID', color: linkColor }];
+              figma.notify(issue.key + ' → ' + msg.targetKey + ' (' + msg.linkType + ')');
+            }
+            figma.closePlugin();
+          }
+          if (msg.type === 'cancel-link') {
+            figma.closePlugin();
+          }
+        };
+      });
+    }
   });
 
   // --- Render: Placeholder ---
@@ -339,9 +392,14 @@ function JiraIssueCard() {
 
   // --- Render: Issue card ---
   var typeSvg = TYPE_SVGS[issue.issueType] || TYPE_SVGS['Task'];
-  var hasTypeIcon = issue.issueTypeIconUrl !== '';
-  var hasPriorityIcon = issue.priorityIconUrl !== '';
   var priorityColor = PRIORITY_COLORS[issue.priority] || '#FFAB00';
+  // Use Jira's native icon if fetched as base64, otherwise fall back to our SVGs
+  var typeIconSvg = issue.issueTypeIconData
+    ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><image href="' + issue.issueTypeIconData + '" width="16" height="16"/></svg>'
+    : typeSvg;
+  var priorityIconSvg = issue.priorityIconData
+    ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><image href="' + issue.priorityIconData + '" width="16" height="16"/></svg>'
+    : (PRIORITY_SVGS[issue.priority] || PRIORITY_SVGS['Medium']);
   var cardWidth = expanded ? 360 : 280;
 
   return (
@@ -371,20 +429,27 @@ function JiraIssueCard() {
         <AutoLayout direction="vertical" padding={{ top: 10, bottom: 14, left: 14, right: 14 }} spacing={8} width="fill-parent">
           {/* Header: icon + type + key + priority */}
           <AutoLayout direction="horizontal" spacing={6} verticalAlignItems="center" width="fill-parent">
-            {hasTypeIcon ? <Image src={issue.issueTypeIconUrl} width={16} height={16} /> : <SVG src={typeSvg} />}
+            <SVG src={typeIconSvg} />
             <Text fontSize={10} fill={typeColor} fontWeight={700} letterSpacing={0.5}>
               {issue.issueType.toUpperCase()}
             </Text>
             <Text fontSize={12} fill="#0055CC" fontWeight={700}>
               {issue.key}
             </Text>
-            {hasPriorityIcon ? <Image src={issue.priorityIconUrl} width={16} height={16} /> : <SVG src={PRIORITY_SVGS[issue.priority] || PRIORITY_SVGS['Medium']} />}
+            <SVG src={priorityIconSvg} />
           </AutoLayout>
 
           {/* Summary */}
           <Text fontSize={13} fill="#172B4D" fontWeight={500} width="fill-parent" lineHeight={18}>
             {issue.summary.length > 90 ? issue.summary.slice(0, 87) + '…' : issue.summary}
           </Text>
+
+          {/* Description preview */}
+          {issue.description ? (
+            <Text fontSize={11} fill="#6B778C" fontWeight={400} width="fill-parent" lineHeight={16}>
+              {issue.description.length > 80 ? issue.description.slice(0, 77) + '…' : issue.description}
+            </Text>
+          ) : null}
 
           {/* Status + Story Points */}
           <AutoLayout direction="horizontal" spacing={8} verticalAlignItems="center" width="fill-parent">
@@ -429,7 +494,7 @@ function JiraIssueCard() {
 
             {/* Project / parent breadcrumb + key */}
             <AutoLayout direction="horizontal" spacing={6} verticalAlignItems="center" width="fill-parent" padding={{ bottom: 6 }}>
-              {hasTypeIcon ? <Image src={issue.issueTypeIconUrl} width={16} height={16} /> : <SVG src={typeSvg} />}
+              <SVG src={typeIconSvg} />
               {issue.projectKey ? (
                 <Text fontSize={13} fill="#6B778C" fontWeight={400}>
                   {issue.projectKey} / {issue.key}
@@ -466,7 +531,7 @@ function JiraIssueCard() {
               {/* Priority */}
               <ExpandedFieldRow label="Priority">
                 <AutoLayout direction="horizontal" spacing={6} verticalAlignItems="center">
-                  {hasPriorityIcon ? <Image src={issue.priorityIconUrl} width={16} height={16} /> : <SVG src={PRIORITY_SVGS[issue.priority] || PRIORITY_SVGS['Medium']} />}
+                  <SVG src={priorityIconSvg} />
                   <Text fontSize={14} fill="#172B4D" fontWeight={400}>{issue.priority}</Text>
                 </AutoLayout>
               </ExpandedFieldRow>
@@ -637,8 +702,10 @@ function normalizeIssue(raw: any): IssueData {
     statusCategory: f.status?.statusCategory?.key || 'new',
     issueType: f.issuetype?.name || 'Task',
     issueTypeIconUrl: f.issuetype?.iconUrl || '',
+    issueTypeIconData: '',
     priority: f.priority?.name || 'Medium',
     priorityIconUrl: f.priority?.iconUrl || '',
+    priorityIconData: '',
     assignee: f.assignee?.displayName || 'Unassigned',
     storyPoints: f.customfield_10016 ?? null,
     sprint,
@@ -673,7 +740,7 @@ function extractAdfText(adf: any): string {
 
 // --- Create new widget instances for imported issues ---
 async function createIssueCards(issues: IssueData[], sourceWidgetId: string) {
-  const sourceNode = figma.getNodeById(sourceWidgetId) as WidgetNode | null;
+  const sourceNode = await figma.getNodeByIdAsync(sourceWidgetId) as WidgetNode | null;
   if (!sourceNode) return;
 
   var CARD_WIDTH = 290;
@@ -697,6 +764,7 @@ async function createIssueCards(issues: IssueData[], sourceWidgetId: string) {
       lastSynced: syncedTime,
     });
 
+    cloned.name = issues[i].key; // used by link-issue to identify this widget on canvas
     cloned.x = startX + col * (CARD_WIDTH + GAP);
     cloned.y = startY + row * (CARD_HEIGHT + GAP);
     created.push(cloned);

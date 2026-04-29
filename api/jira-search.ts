@@ -30,14 +30,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { jql } = req.body;
   const authHeader = req.headers.authorization;
   let accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
-  const refreshToken = req.cookies.refresh_token;
+  const refreshToken = req.headers['x-refresh-token'] as string || req.cookies.refresh_token;
 
   if (!accessToken) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  if (!jql) {
+  if (!jql || typeof jql !== 'string' || jql.trim().length === 0) {
     return res.status(400).json({ error: 'JQL query required' });
+  }
+  if (jql.length > 2000) {
+    return res.status(400).json({ error: 'JQL query too long (max 2000 chars)' });
   }
 
   try {
@@ -90,7 +93,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     
     console.error('Jira search failed:', error);
-    const detail = axios.isAxiosError(error) ? error.response?.data : String(error);
-    res.status(500).json({ error: 'Failed to search Jira', detail });
+    res.status(500).json({ error: 'Search failed. Please try again.' });
   }
 }

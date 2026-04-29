@@ -34,6 +34,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { key, fields } = req.body;
   if (!key || !fields) return res.status(400).json({ error: 'Missing key or fields' });
 
+  const ALLOWED_FIELDS = new Set(['summary', 'description', 'customfield_10016', 'priority', 'assignee', 'labels', 'fixVersions', 'components']);
+  const safeFields = Object.fromEntries(
+    Object.entries(fields).filter(([k]) => ALLOWED_FIELDS.has(k))
+  );
+  if (Object.keys(safeFields).length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
   const authHeader = req.headers.authorization;
   let token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : req.cookies.access_token;
   if (!token) return res.status(401).json({ error: 'Not authenticated', code: 'no_token' });
@@ -47,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    await patchIssue(cloudId, key, fields, token);
+    await patchIssue(cloudId, key, safeFields, token);
     return res.status(200).json({ ok: true });
   } catch (err: any) {
     const status = err.response?.status;
@@ -56,11 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Not a token issue — surface the real error
     if (status !== 401) {
       console.error('Jira update failed:', status, atlassianError);
-      return res.status(status || 500).json({
-        error: 'Jira update failed',
-        status,
-        detail: atlassianError,
-      });
+      return res.status(status || 500).json({ error: 'Update failed. Please try again.' });
     }
 
     // 401 — try refresh once
@@ -76,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     try {
       const newCloudId = await getCloudId(newTokens.access_token);
-      await patchIssue(newCloudId, key, fields, newTokens.access_token);
+      await patchIssue(newCloudId, key, safeFields, newTokens.access_token);
       return res.status(200).json({
         ok: true,
         new_access_token: newTokens.access_token,
@@ -87,9 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const retryDetail = retryErr.response?.data;
       console.error('Jira update retry failed:', retryStatus, retryDetail);
       return res.status(retryStatus || 500).json({
-        error: 'Update failed after token refresh',
-        status: retryStatus,
-        detail: retryDetail,
+        error: retryStatus === 401 ? 'Session expired' : 'Update failed. Please try again.',
         code: retryStatus === 401 ? 'auth_expired' : 'update_failed',
       });
     }

@@ -53,6 +53,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('Token exchange failed:', msg);
-    res.status(500).json({ error: `Token exchange failed: ${msg}` });
+    res.status(500).json({ error: 'Authentication failed. Please try again.' });
   }
 }

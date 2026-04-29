@@ -18,8 +18,10 @@ function verifyCode(code: string): { a: string; r: string; i: string; x: number;
 }
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const origin = req.headers.origin || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
+  const ALLOWED_ORIGINS = ['https://www.figma.com', 'https://www.figjam.com', 'null'];
+  const reqOrigin = req.headers.origin || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(reqOrigin) ? reqOrigin : 'null';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');

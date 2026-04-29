@@ -84,7 +84,7 @@
         <button class="btn-sm" onclick="setJql('type = Epic AND status != Done ORDER BY rank')">Epics</button>
       </div>
       <div class="jql-row">
-        <input type="text" id="jql-input" placeholder='project = CRT AND sprint in openSprints()' onkeydown="if(event.key==='Enter')doSearch()" />
+        <input type="text" id="jql-input" placeholder='created >= -30d order by created DESC' value='created >= -30d order by created DESC' onkeydown="if(event.key==='Enter')doSearch()" />
         <button class="btn-primary" id="exec-btn" onclick="doSearch()">Search</button>
       </div>
       <div id="results-header" style="display:none">
@@ -109,13 +109,29 @@
         <input type="text" id="edit-summary" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
       </div>
       <div style="margin-bottom:12px;">
-        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
-        <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:80px; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Description</label>
+        <textarea id="edit-description" rows="3" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff; resize:vertical; font-family:inherit;"></textarea>
+      </div>
+      <div style="display:flex; gap:12px; margin-bottom:12px;">
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
+          <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Priority</label>
+          <select id="edit-priority" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
+            <option>Highest</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+            <option>Lowest</option>
+          </select>
+        </div>
       </div>
       <div style="margin-bottom:12px;">
         <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Status</label>
         <span id="edit-status" class="status-badge" style="display:inline-block;"></span>
-        <span style="font-size:10px; color:#B3BAC5; margin-left:6px;">(change in Jira)</span>
+        <span style="font-size:10px; color:#B3BAC5; margin-left:6px;">(change via Jira transitions — coming soon)</span>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
         <button class="btn-sm" onclick="send('cancel-edit')">Cancel</button>
@@ -123,16 +139,73 @@
       </div>
       <p id="edit-error" class="error" style="margin-top:8px; font-size:11px; display:none"></p>
     </div>
+
+    <!-- Link Section -->
+    <div id="link-section" style="display:none">
+      <h3 id="link-title">Link Issue</h3>
+      <p style="font-size:11px; color:#6B778C; margin-bottom:12px;">Create a visual connector between cards on the canvas.</p>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Link to</label>
+        <select id="link-target" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;"></select>
+        <p id="link-empty" style="font-size:11px; color:#B3BAC5; margin-top:6px; display:none;">No other issue cards found on canvas. Import more issues first.</p>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Relationship</label>
+        <select id="link-type" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
+          <option value="relates to">Relates to</option>
+          <option value="blocks">Blocks</option>
+          <option value="is blocked by">Is blocked by</option>
+          <option value="depends on">Depends on</option>
+          <option value="duplicates">Duplicates</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn-sm" onclick="send('cancel-link')">Cancel</button>
+        <button class="btn-primary" id="link-btn" onclick="confirmLink()">Create Link</button>
+      </div>
+    </div>
   </div>
 
   <script>
     const API_BASE = 'https://jira-figjam-plugin.vercel.app';
     let _token = null;
+    let _refreshToken = null;
     let _issues = [];
     let _selected = new Set();
+    const _iconCache = {};
+
+    async function fetchIconBase64(url) {
+      if (!url || !_token) return '';
+      if (_iconCache[url]) return _iconCache[url];
+      try {
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${_token}` } });
+        if (!res.ok) return '';
+        const blob = await res.blob();
+        const b64 = await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result || '');
+          reader.readAsDataURL(blob);
+        });
+        _iconCache[url] = b64;
+        return b64;
+      } catch { return ''; }
+    }
+
+    async function fetchIssueIcons(issues) {
+      const typeUrls = [...new Set(issues.map(i => i.issueTypeIconUrl).filter(Boolean))];
+      const priUrls  = [...new Set(issues.map(i => i.priorityIconUrl).filter(Boolean))];
+      await Promise.all([
+        ...typeUrls.map(url => fetchIconBase64(url)),
+        ...priUrls.map(url => fetchIconBase64(url)),
+      ]);
+      issues.forEach(issue => {
+        if (issue.issueTypeIconUrl) issue.issueTypeIconData = _iconCache[issue.issueTypeIconUrl] || '';
+        if (issue.priorityIconUrl)  issue.priorityIconData  = _iconCache[issue.priorityIconUrl]  || '';
+      });
+    }
 
     function send(type, data) {
-      parent.postMessage({ pluginMessage: { type, ...data } }, '*');
+      parent.postMessage({ pluginMessage: { type, ...data } }, 'https://www.figma.com');
     }
 
     // Listen for messages from widget code
@@ -141,13 +214,18 @@
       if (!msg) return;
       if (msg.type === 'set-token') {
         _token = msg.token;
+        _refreshToken = msg.refreshToken || null;
         showConnected(msg.instance);
       }
       if (msg.type === 'auth-error') {
         showVerifyError(msg.error);
       }
       if (msg.type === 'edit-mode') {
+        _refreshToken = msg.refreshToken || _refreshToken;
         enterEditMode(msg.issue, msg.token, msg.instance);
+      }
+      if (msg.type === 'link-mode') {
+        enterLinkMode(msg.sourceKey, msg.targets);
       }
     };
 
@@ -216,12 +294,14 @@
       document.getElementById('results-header').style.display = 'none';
 
       try {
+        const searchHeaders = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${_token}`,
+        };
+        if (_refreshToken) searchHeaders['X-Refresh-Token'] = _refreshToken;
         const res = await fetch(`${API_BASE}/api/jira-search`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${_token}`,
-          },
+          headers: searchHeaders,
           body: JSON.stringify({ jql }),
         });
         const data = await res.json();
@@ -229,6 +309,8 @@
         _issues = (data.issues || []).map(normalizeIssue);
         _selected.clear();
         renderResults();
+        // Fetch Jira icons with auth token in background (doesn't block render)
+        fetchIssueIcons(_issues).catch(() => {});
       } catch (err) {
         document.getElementById('results').textContent = err.message;
       } finally {
@@ -255,8 +337,10 @@
         statusCategory: f.status?.statusCategory?.key || 'new',
         issueType: f.issuetype?.name || 'Task',
         issueTypeIconUrl: f.issuetype?.iconUrl || '',
+        issueTypeIconData: '',
         priority: f.priority?.name || 'Medium',
         priorityIconUrl: f.priority?.iconUrl || '',
+        priorityIconData: '',
         assignee: f.assignee?.displayName || 'Unassigned',
         storyPoints: f.customfield_10016 ?? null,
         sprint: extractSprint(f.customfield_10020),
@@ -378,7 +462,9 @@
 
       document.getElementById('edit-title').textContent = `Edit ${issue.key}`;
       document.getElementById('edit-summary').value = issue.summary;
+      document.getElementById('edit-description').value = issue.description || '';
       document.getElementById('edit-points').value = issue.storyPoints != null ? issue.storyPoints : '';
+      document.getElementById('edit-priority').value = issue.priority || 'Medium';
 
       const statusEl = document.getElementById('edit-status');
       const sc = statusColor(issue.statusCategory);
@@ -395,7 +481,9 @@
       document.getElementById('edit-error').style.display = 'none';
 
       const newSummary = document.getElementById('edit-summary').value.trim();
+      const newDescription = document.getElementById('edit-description').value.trim();
       const newPoints = document.getElementById('edit-points').value;
+      const newPriority = document.getElementById('edit-priority').value;
 
       const fields = {};
       const updates = {};
@@ -405,10 +493,24 @@
         updates.summary = newSummary;
       }
 
+      if (newDescription !== (_editIssue.description || '')) {
+        // Jira ADF format for plain text description
+        fields.description = {
+          type: 'doc', version: 1,
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: newDescription || ' ' }] }]
+        };
+        updates.description = newDescription;
+      }
+
       const pointsVal = newPoints === '' ? null : parseFloat(newPoints);
       if (pointsVal !== _editIssue.storyPoints) {
         fields.customfield_10016 = pointsVal;
         updates.storyPoints = pointsVal;
+      }
+
+      if (newPriority !== _editIssue.priority) {
+        fields.priority = { name: newPriority };
+        updates.priority = newPriority;
       }
 
       if (Object.keys(fields).length === 0) {
@@ -417,12 +519,14 @@
       }
 
       try {
+        const updateHeaders = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${_token}`,
+        };
+        if (_refreshToken) updateHeaders['X-Refresh-Token'] = _refreshToken;
         const res = await fetch(`${API_BASE}/api/jira-update`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${_token}`,
-          },
+          headers: updateHeaders,
           body: JSON.stringify({ key: _editIssue.key, fields }),
         });
         const data = await res.json();
@@ -436,6 +540,42 @@
         btn.disabled = false;
         btn.textContent = 'Save to Jira';
       }
+    }
+
+    // --- Link mode ---
+    let _linkTargets = [];
+
+    function enterLinkMode(sourceKey, targets) {
+      _linkTargets = targets || [];
+      document.getElementById('auth-section').style.display = 'none';
+      document.getElementById('search-section').style.display = 'none';
+      document.getElementById('edit-section').style.display = 'none';
+      document.getElementById('link-section').style.display = 'block';
+      document.getElementById('link-title').textContent = 'Link ' + sourceKey;
+
+      const sel = document.getElementById('link-target');
+      sel.innerHTML = '';
+      if (_linkTargets.length === 0) {
+        document.getElementById('link-empty').style.display = 'block';
+        document.getElementById('link-btn').disabled = true;
+      } else {
+        document.getElementById('link-empty').style.display = 'none';
+        document.getElementById('link-btn').disabled = false;
+        _linkTargets.forEach(function(t) {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.key;
+          sel.appendChild(opt);
+        });
+      }
+    }
+
+    function confirmLink() {
+      const sel = document.getElementById('link-target');
+      const targetId = sel.value;
+      const targetKey = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+      const linkType = document.getElementById('link-type').value;
+      send('create-link', { targetId, targetKey, linkType });
     }
   </script>
 </body>
