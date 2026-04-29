@@ -158,7 +158,9 @@
         </div>
         <div style="flex:1;">
           <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Sprint</label>
-          <div id="edit-sprint" class="readonly-field"></div>
+          <select id="edit-sprint-select" disabled style="width:100%; padding:7px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;">
+            <option value="">Loading…</option>
+          </select>
         </div>
       </div>
       <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
@@ -445,10 +447,10 @@
       return active?.name || null;
     }
 
-    function statusColor(category) {
-      if (category === 'done') return '#22a06b';
-      if (category === 'indeterminate') return '#0c66e4';
-      return '#626f86';
+    function statusStyle(category) {
+      if (category === 'done')          return { bg: '#DCFFF1', fg: '#216E4E' };
+      if (category === 'indeterminate') return { bg: '#DEEBFF', fg: '#0055CC' };
+      return { bg: '#F1F2F4', fg: '#626F86' };
     }
 
     function typeColor(type) {
@@ -488,7 +490,7 @@
           <span class="issue-key">${esc(iss.key)}</span>
           <span class="issue-summary" title="${esc(iss.summary)}">${esc(iss.summary)}</span>
           <span class="issue-pts">${iss.storyPoints != null ? esc(String(iss.storyPoints)) : ''}</span>
-          <span class="status-badge" style="background:${statusColor(iss.statusCategory)}20; color:${statusColor(iss.statusCategory)}">${esc(iss.status)}</span>
+          <span class="status-badge" style="background:${statusStyle(iss.statusCategory).bg}; color:${statusStyle(iss.statusCategory).fg}">${esc(iss.status)}</span>
           <span class="assignee-badge" title="${esc(iss.assignee)}">${esc(initials(iss.assignee))}</span>
         </label>
       `).join('');
@@ -558,7 +560,10 @@
       document.getElementById('edit-assignee-id').value = '';
       document.getElementById('edit-labels').value = (issue.labels || []).join(', ');
       document.getElementById('edit-reporter').textContent = issue.reporter || 'Unknown';
-      document.getElementById('edit-sprint').textContent = issue.sprint || '—';
+      const sprintSel = document.getElementById('edit-sprint-select');
+      sprintSel.innerHTML = '<option value="">Loading…</option>';
+      sprintSel.disabled = true;
+      loadSprints(issue.projectKey);
 
       // Status dropdown — show current as selected, load transitions as change options
       const sel = document.getElementById('edit-status-select');
@@ -592,6 +597,47 @@
         }
         sel.disabled = false;
       } catch { sel.disabled = false; }
+    }
+
+    async function loadSprints(projectKey) {
+      const sel = document.getElementById('edit-sprint-select');
+      const fallback = `<option value="">${_editIssue.sprint || '— No Sprint —'}</option>`;
+      if (!sel || !projectKey) { if (sel) { sel.innerHTML = fallback; sel.disabled = false; } return; }
+      try {
+        const headers = { Authorization: `Bearer ${_token}` };
+        if (_refreshToken) headers['X-Refresh-Token'] = _refreshToken;
+        const res = await fetch(`${API_BASE}/api/jira-sprints?project=${encodeURIComponent(projectKey)}`, { headers });
+        if (!res.ok) { sel.innerHTML = fallback; sel.disabled = false; return; }
+        const data = await res.json();
+        const sprints = data.sprints || [];
+        sel.innerHTML = '<option value="">— No Sprint —</option>';
+        // If current sprint not in list (e.g. completed), show it at top
+        const currentName = _editIssue.sprint;
+        const currentInList = sprints.find(s => s.name === currentName);
+        if (currentName && !currentInList) {
+          const opt = document.createElement('option');
+          opt.value = '__current__';
+          opt.textContent = currentName + ' (current)';
+          opt.selected = true;
+          sel.appendChild(opt);
+        }
+        const active = sprints.filter(s => s.state === 'active');
+        const future = sprints.filter(s => s.state === 'future');
+        [['Active', active], ['Future', future]].forEach(([label, list]) => {
+          if (!list.length) return;
+          const grp = document.createElement('optgroup');
+          grp.label = label;
+          list.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.name;
+            if (s.name === currentName) opt.selected = true;
+            grp.appendChild(opt);
+          });
+          sel.appendChild(grp);
+        });
+        sel.disabled = false;
+      } catch { sel.innerHTML = fallback; sel.disabled = false; }
     }
 
     function searchAssignee(query) {
@@ -662,6 +708,10 @@
         : null;
       const newAssigneeId = document.getElementById('edit-assignee-id').value;
       const newAssigneeName = document.getElementById('edit-assignee').value.trim();
+      const sprintSel = document.getElementById('edit-sprint-select');
+      const newSprintId = sprintSel && sprintSel.value && sprintSel.value !== '__current__' ? sprintSel.value : '';
+      const newSprintName = newSprintId ? sprintSel.options[sprintSel.selectedIndex].text : '';
+      const sprintChanged = newSprintId && newSprintName !== (_editIssue.sprint || '');
 
       const fields = {};
       const updates = {};
@@ -698,7 +748,7 @@
       }
 
       const hasFieldChanges = Object.keys(fields).length > 0;
-      if (!hasFieldChanges && !transitionId) {
+      if (!hasFieldChanges && !transitionId && !sprintChanged) {
         send('cancel-edit');
         return;
       }
@@ -728,7 +778,18 @@
           if (res.status === 401) { handleAuthError(); return; }
           if (!res.ok) throw new Error(data.error || 'Status change failed');
           updates.status = transitionName;
-          // statusCategory will be refreshed on next sync
+        }
+
+        // 3. Move sprint if changed
+        if (sprintChanged) {
+          const res = await fetch(`${API_BASE}/api/jira-sprints`, {
+            method: 'POST', headers: authHeaders,
+            body: JSON.stringify({ key: _editIssue.key, sprintId: parseInt(newSprintId) }),
+          });
+          const data = await res.json();
+          if (res.status === 401) { handleAuthError(); return; }
+          if (!res.ok) throw new Error(data.error || 'Sprint change failed');
+          updates.sprint = newSprintName;
         }
 
         send('save-issue', { key: _editIssue.key, updates });
