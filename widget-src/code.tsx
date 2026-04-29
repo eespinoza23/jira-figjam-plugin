@@ -673,7 +673,7 @@ function extractAdfText(adf: any): string {
 
 // --- Create new widget instances for imported issues ---
 async function createIssueCards(issues: IssueData[], sourceWidgetId: string) {
-  const sourceNode = await figma.getNodeByIdAsync(sourceWidgetId) as WidgetNode | null;
+  const sourceNode = figma.getNodeById(sourceWidgetId) as WidgetNode | null;
   if (!sourceNode) return;
 
   var CARD_WIDTH = 290;
@@ -684,15 +684,17 @@ async function createIssueCards(issues: IssueData[], sourceWidgetId: string) {
   var startX = sourceNode.x + 320;
   var startY = sourceNode.y;
   var created: SceneNode[] = [];
+  var syncedTime = new Date().toLocaleTimeString();
 
   for (var i = 0; i < issues.length; i++) {
     var col = i % COLS;
     var row = Math.floor(i / COLS);
 
+    // cloneWidget expects raw values, not JSON.stringify'd strings
     var cloned = sourceNode.cloneWidget({
-      issue: JSON.stringify(issues[i]),
-      expanded: JSON.stringify(false),
-      lastSynced: JSON.stringify(new Date().toLocaleTimeString()),
+      issue: issues[i],
+      expanded: false,
+      lastSynced: syncedTime,
     });
 
     cloned.x = startX + col * (CARD_WIDTH + GAP);
