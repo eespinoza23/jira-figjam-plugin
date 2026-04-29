@@ -6,7 +6,11 @@ var frameToKey = {};
 figma.on('selectionchange', function() {
   var sel = figma.currentPage.selection;
   if (sel.length !== 1) return;
-  var key = frameToKey[sel[0].id];
+  var node = sel[0];
+  var key = frameToKey[node.id];
+  // Walk up parent chain — handles clicks on child nodes (text, ellipse, rect) inside a card frame
+  if (!key && node.parent) key = frameToKey[node.parent.id];
+  if (!key && node.parent && node.parent.parent) key = frameToKey[node.parent.parent.id];
   if (key) figma.ui.postMessage({ type: 'edit-card', key: key });
 });
 
