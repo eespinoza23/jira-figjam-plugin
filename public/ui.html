@@ -163,6 +163,7 @@ var STATUS_DOT = {"To Do":"#9CA3AF","In Progress":"#3B82F6","In Review":"#F97316
 var sel = new Set(), imported = [], instance = null, authenticated = false;
 var _token = null, _refresh = null, nodeMap = {}, expandedKey = null;
 var groupBy = 'type';
+var transitionsCache = {}; // key → [{id, name}]
 var API = 'https://jira-figjam-plugin.vercel.app';
 
 function send(type, data) {
@@ -247,8 +248,19 @@ function renderList() {
     html += '<div style="display:flex;gap:8px">';
     html += '<div class="field-row" style="flex:1"><div class="field-lbl">Story Points</div>';
     html += '<input type="number" class="field-input" id="pts-' + esc(issue.key) + '" min="0" max="100" value="' + (issue.points !== null && issue.points !== undefined ? issue.points : '') + '"></div>';
-    html += '<div class="field-row" style="flex:1"><div class="field-lbl">Status (Jira)</div>';
-    html += '<div style="padding:6px 8px;background:#0D1117;border:1px solid #252830;border-radius:5px;font-size:9px;color:#6B7280;display:flex;align-items:center;gap:5px"><div class="status-dot" style="background:' + dotColor + '"></div>' + esc(issue.status) + '</div></div>';
+    html += '<div class="field-row" style="flex:1"><div class="field-lbl">Status</div>';
+    // Status select — populated by fetchTransitions on expand; falls back to read-only display
+    var cachedT = transitionsCache[issue.key];
+    if (cachedT) {
+      html += '<select class="field-input" id="status-' + esc(issue.key) + '" style="font-family:\'IBM Plex Mono\',monospace;font-size:9px;color:#E2E8F0;cursor:pointer">';
+      cachedT.forEach(function(t) {
+        html += '<option value="' + esc(t.id) + '"' + (t.name === issue.status ? ' selected' : '') + '>' + esc(t.name) + '</option>';
+      });
+      html += '</select>';
+    } else {
+      html += '<div id="status-' + esc(issue.key) + '" style="padding:6px 8px;background:#0D1117;border:1px solid #252830;border-radius:5px;font-size:9px;color:#6B7280;display:flex;align-items:center;gap:5px"><div class="status-dot" style="background:' + dotColor + '"></div>' + esc(issue.status) + '</div>';
+    }
+    html += '</div>';
     html += '</div>';
     html += '<div class="edit-actions">';
     html += '<button class="save-btn" id="savebtn-' + esc(issue.key) + '" onclick="saveInline(\'' + esc(issue.key) + '\')">💾 Save &amp; Sync</button>';
@@ -269,10 +281,47 @@ function renderList() {
   document.getElementById('sync-all-btn').disabled = imported.length === 0;
 }
 
+function fetchTransitions(key) {
+  if (transitionsCache[key]) return; // already loaded
+  fetch(API + '/api/jira-transitions?key=' + encodeURIComponent(key), {headers: apiHeaders()})
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.new_access_token) { _token = d.new_access_token; _refresh = d.new_refresh_token; }
+    if (d.transitions && d.transitions.length) {
+      transitionsCache[key] = d.transitions.map(function(t) { return {id: t.id, name: t.to ? t.to.name : t.name}; });
+      // Re-render status cell in place if card still expanded
+      if (expandedKey === key) {
+        var issue = null;
+        imported.forEach(function(i) { if (i.key === key) issue = i; });
+        var statusEl = document.getElementById('status-' + key);
+        if (statusEl && issue) {
+          var sel2 = document.createElement('select');
+          sel2.className = 'field-input';
+          sel2.id = 'status-' + key;
+          sel2.style.fontFamily = "'IBM Plex Mono',monospace";
+          sel2.style.fontSize = '9px';
+          sel2.style.color = '#E2E8F0';
+          sel2.style.cursor = 'pointer';
+          transitionsCache[key].forEach(function(t) {
+            var opt = document.createElement('option');
+            opt.value = t.id;
+            opt.textContent = t.name;
+            if (t.name === issue.status) opt.selected = true;
+            sel2.appendChild(opt);
+          });
+          statusEl.parentNode.replaceChild(sel2, statusEl);
+        }
+      }
+    }
+  })
+  .catch(function() {}); // silent — status stays read-only if fetch fails
+}
+
 function toggleExpand(key) {
   expandedKey = (expandedKey === key) ? null : key;
   renderList();
   if (expandedKey) {
+    fetchTransitions(expandedKey);
     var el = document.getElementById('icard-' + key);
     if (el) setTimeout(function() { el.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 50);
   }
@@ -281,19 +330,36 @@ function toggleExpand(key) {
 function expandCard(key) {
   expandedKey = key;
   renderList();
+  fetchTransitions(key);
   var el = document.getElementById('icard-' + key);
   if (el) setTimeout(function() { el.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 50);
 }
 
 function saveInline(key) {
-  var sumEl = document.getElementById('sum-' + key);
-  var ptsEl = document.getElementById('pts-' + key);
-  var btn   = document.getElementById('savebtn-' + key);
-  var msg   = document.getElementById('msg-' + key);
+  var sumEl    = document.getElementById('sum-' + key);
+  var ptsEl    = document.getElementById('pts-' + key);
+  var statusEl = document.getElementById('status-' + key);
+  var btn      = document.getElementById('savebtn-' + key);
+  var msg      = document.getElementById('msg-' + key);
   if (!sumEl) return;
   var summary = sumEl.value.trim();
   var points  = ptsEl ? ptsEl.value : '';
   if (!summary) { if (msg) { msg.style.color = '#F87171'; msg.textContent = 'Summary cannot be empty'; } return; }
+
+  // Detect if user changed the status dropdown
+  var newTransitionId = null;
+  var newStatusName   = null;
+  if (statusEl && statusEl.tagName === 'SELECT' && statusEl.options.length) {
+    var selectedOpt = statusEl.options[statusEl.selectedIndex];
+    if (selectedOpt) {
+      var currentIssue = null;
+      imported.forEach(function(i) { if (i.key === key) currentIssue = i; });
+      if (currentIssue && selectedOpt.text !== currentIssue.status) {
+        newTransitionId = selectedOpt.value;
+        newStatusName   = selectedOpt.text;
+      }
+    }
+  }
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
@@ -302,6 +368,7 @@ function saveInline(key) {
   var fields = {summary: summary};
   if (points !== '' && !isNaN(parseFloat(points))) fields['customfield_10016'] = parseFloat(points);
 
+  // Step 1: save summary + points
   fetch(API + '/api/jira-update', {
     method: 'POST',
     headers: apiHeaders(),
@@ -309,43 +376,73 @@ function saveInline(key) {
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
-    btn.disabled = false;
-    btn.textContent = '💾 Save & Sync';
     if (!d.ok) {
+      btn.disabled = false;
+      btn.textContent = '💾 Save & Sync';
       if (msg) { msg.style.color = '#F87171'; msg.textContent = d.code === 'auth_expired' ? 'Session expired — reconnect' : (d.error || 'Update failed'); }
-      return;
+      return Promise.reject('fields_failed');
     }
     if (d.new_access_token) { _token = d.new_access_token; _refresh = d.new_refresh_token; }
 
-    var ptsVal = points !== '' && !isNaN(parseFloat(points)) ? parseFloat(points) : null;
+    // Step 2: apply transition if status changed
+    if (newTransitionId) {
+      return fetch(API + '/api/jira-transitions', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({key: key, transitionId: newTransitionId})
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(td) {
+        if (td.new_access_token) { _token = td.new_access_token; _refresh = td.new_refresh_token; }
+        return {transitionOk: !!td.ok, transitionErr: td.error || null};
+      })
+      .catch(function() { return {transitionOk: false, transitionErr: 'Transition request failed'}; });
+    }
+    return {transitionOk: true, transitionErr: null};
+  })
+  .then(function(result) {
+    btn.disabled = false;
+    btn.textContent = '💾 Save & Sync';
+
+    var ptsVal      = points !== '' && !isNaN(parseFloat(points)) ? parseFloat(points) : null;
+    var finalStatus = (result.transitionOk && newStatusName) ? newStatusName : null;
+
+    // Update local state
     imported = imported.map(function(i) {
       if (i.key !== key) return i;
       var u = {}; var k; for (k in i) u[k] = i[k];
       u.summary = summary;
       if (ptsVal !== null) u.points = ptsVal;
+      if (finalStatus) u.status = finalStatus;
       return u;
     });
 
-    // Update canvas card via stored node IDs
+    // Push changes to canvas card
     var ids = nodeMap[key];
     if (ids && ids.summaryId) {
-      send('update-canvas-card', {
+      var canvasUpdate = {
         key: key,
         summaryId: ids.summaryId,
         ptsId: ids.ptsId || null,
         statusId: ids.statusId || null,
         dotId: ids.dotId || null,
         assigneeId: ids.assigneeId || null,
-        summary: summary,
-        points: ptsVal !== null ? ptsVal : undefined
-      });
+        summary: summary
+      };
+      if (ptsVal !== null) canvasUpdate.points = ptsVal;
+      if (finalStatus) canvasUpdate.status = finalStatus;
+      send('update-canvas-card', canvasUpdate);
     }
 
-    if (msg) { msg.style.color = '#4ADE80'; msg.textContent = 'Synced to Jira ✓' + (ids ? ' + canvas' : ''); }
-    // Update the textarea/input in place without full re-render
+    if (newTransitionId && !result.transitionOk) {
+      if (msg) { msg.style.color = '#F97316'; msg.textContent = 'Fields saved ✓ — status transition failed: ' + (result.transitionErr || 'unknown'); }
+    } else {
+      if (msg) { msg.style.color = '#4ADE80'; msg.textContent = 'Synced to Jira ✓' + (ids ? ' + canvas' : ''); }
+    }
     if (sumEl) sumEl.value = summary;
   })
   .catch(function(e) {
+    if (e === 'fields_failed') return; // already handled above
     btn.disabled = false;
     btn.textContent = '💾 Save & Sync';
     if (msg) { msg.style.color = '#F87171'; msg.textContent = 'Error: ' + e.message; }
@@ -353,7 +450,6 @@ function saveInline(key) {
 }
 
 function doSync(key) {
-  var btn = document.getElementById('savebtn-' + key);
   var msg = document.getElementById('msg-' + key);
   if (msg) { msg.style.color = '#6B7280'; msg.textContent = 'Pulling from Jira…'; }
   fetch(API + '/api/jira-search', {
@@ -367,6 +463,8 @@ function doSync(key) {
     if (!fresh) { if (msg) { msg.style.color = '#F87171'; msg.textContent = 'Not found in Jira'; } return; }
     var normalized = normalizeIssue(fresh);
     imported = imported.map(function(i) { return i.key === key ? normalized : i; });
+    // Clear cached transitions so dropdown refreshes for the new status
+    delete transitionsCache[key];
     var ids = nodeMap[key];
     if (ids && ids.summaryId) {
       send('update-canvas-card', {
@@ -384,6 +482,7 @@ function doSync(key) {
     }
     expandedKey = key;
     renderList();
+    fetchTransitions(key);
     if (msg) { msg.style.color = '#4ADE80'; msg.textContent = 'Pulled from Jira ✓'; }
   })
   .catch(function() { if (msg) { msg.style.color = '#F87171'; msg.textContent = 'Pull failed'; } });
@@ -459,7 +558,7 @@ function showConnected() {
 }
 function doLogout() {
   _token = null; _refresh = null; authenticated = false; instance = null;
-  imported = []; sel = new Set(); nodeMap = {}; expandedKey = null;
+  imported = []; sel = new Set(); nodeMap = {}; expandedKey = null; transitionsCache = {};
   send('clear-session');
   document.getElementById('auth-btn').textContent = '🔗 Connect to Jira';
   document.getElementById('auth-btn').disabled = false;
@@ -486,7 +585,7 @@ function execJQL() {
     btn.disabled = false; btn.innerHTML = '▶ Run JQL';
     if (d.error) { alert('Search failed: ' + d.error); return; }
     imported = (d.issues || []).map(function(raw) { return normalizeIssue(raw); });
-    expandedKey = null; sel = new Set();
+    expandedKey = null; sel = new Set(); transitionsCache = {};
     document.getElementById('idle').style.display = 'none';
     document.getElementById('sel-bar').style.display = 'flex';
     document.getElementById('results-wrap').style.display = 'flex';
