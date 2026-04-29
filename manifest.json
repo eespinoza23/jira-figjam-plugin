@@ -3,6 +3,7 @@
   "name": "Jira Multi-Import for FigJam",
   "api": "1.0.0",
   "widgetApi": "1.0.0",
+  "containsWidget": true,
   "editorType": ["figjam"],
   "main": "dist/code.js",
   "ui": "dist/index.html",
