@@ -10,7 +10,7 @@
     "dev:vercel": "vercel dev",
     "build": "npm run build:widget && npm run build:ui",
     "build:widget": "esbuild widget-src/code.tsx --bundle --outfile=dist/code.js --target=es2017",
-    "build:ui": "vite build",
+    "build:ui": "node -e \"const fs=require('fs');fs.copyFileSync('ui-src/index.html','dist/index.html');console.log('UI copied to dist/index.html')\"",
     "build:vercel": "tsc --project api/tsconfig.json",
     "deploy": "vercel",
     "typecheck": "tsc --noEmit -p widget-src"
