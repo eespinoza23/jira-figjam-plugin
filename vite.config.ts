@@ -1,13 +1,14 @@
 import { defineConfig } from 'vite';
+import { viteSingleFile } from 'vite-plugin-singlefile';
 
 export default defineConfig({
-  server: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
+  plugins: [viteSingleFile()],
+  root: 'ui-src',
+  build: {
+    outDir: '../dist',
+    emptyOutDir: false,
+    rollupOptions: {
+      input: 'ui-src/index.html',
     },
   },
 });

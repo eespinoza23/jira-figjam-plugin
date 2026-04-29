@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; color: #172B4D; padding: 16px; background: #FAFBFC; }
+    h3 { font-size: 14px; margin-bottom: 10px; font-weight: 700; color: #172B4D; }
+    .jql-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .jql-row input { flex: 1; padding: 8px 10px; border: 1px solid #DFE1E6; border-radius: 6px; font-size: 12px; background: #fff; transition: border-color 0.15s; }
+    .jql-row input:focus { outline: none; border-color: #0c66e4; box-shadow: 0 0 0 2px #0c66e420; }
+    button { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.15s; }
+    .btn-primary { background: #0c66e4; color: white; }
+    .btn-primary:hover { background: #0055cc; }
+    .btn-primary:disabled { background: #B3D4FF; cursor: default; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; background: #fff; color: #505F79; border: 1px solid #DFE1E6; border-radius: 6px; }
+    .btn-sm:hover { background: #F4F5F7; border-color: #C1C7D0; }
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .results { max-height: 260px; overflow-y: auto; margin-top: 8px; border-radius: 6px; border: 1px solid #EBECF0; background: #fff; }
+    .issue-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid #F4F5F7; cursor: pointer; transition: background 0.1s; }
+    .issue-row:last-child { border-bottom: none; }
+    .issue-row:hover { background: #F4F5F7; }
+    .issue-row input[type="checkbox"] { flex-shrink: 0; accent-color: #0c66e4; }
+    .issue-key { font-weight: 700; color: #0055CC; font-size: 11px; min-width: 70px; }
+    .issue-summary { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #172B4D; }
+    .issue-type { font-size: 9px; color: #666; min-width: 40px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.3px; }
+    .issue-pts { font-size: 11px; color: #505F79; min-width: 28px; text-align: right; font-weight: 600; background: #F4F5F7; padding: 2px 5px; border-radius: 3px; }
+    .issue-pts:empty { background: none; }
+    .status-badge { font-size: 9px; padding: 3px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase; white-space: nowrap; letter-spacing: 0.2px; }
+    .msg { padding: 16px; text-align: center; color: #6B778C; font-size: 12px; }
+    .error { color: #DE350B; }
+    .connected { color: #00875A; font-weight: 600; font-size: 12px; }
+    .section { margin-bottom: 14px; }
+    .code-input { display: flex; gap: 6px; margin-top: 8px; }
+    .code-input input { flex: 1; padding: 8px 10px; border: 1px solid #DFE1E6; border-radius: 6px; font-size: 11px; font-family: 'SF Mono', Monaco, monospace; background: #fff; }
+    .code-input input:focus { outline: none; border-color: #0c66e4; box-shadow: 0 0 0 2px #0c66e420; }
+    .auth-hint { font-size: 11px; color: #6B778C; margin-top: 6px; line-height: 1.5; }
+    .result-count { font-size: 11px; color: #6B778C; margin-bottom: 6px; font-weight: 500; }
+    .select-actions { display: flex; gap: 10px; margin-bottom: 6px; }
+    .select-actions a { font-size: 11px; color: #0c66e4; cursor: pointer; text-decoration: none; font-weight: 500; }
+    .select-actions a:hover { text-decoration: underline; }
+    .footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .sp-badge { font-size: 11px; color: #505F79; font-weight: 600; background: #F4F5F7; padding: 4px 8px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <!-- Auth Section -->
+    <div id="auth-section" class="section">
+      <div id="auth-connect">
+        <button class="btn-primary" onclick="startAuth()">Connect to Jira</button>
+        <p class="auth-hint" style="margin-top:8px">Opens Atlassian OAuth in your browser.</p>
+        <p class="auth-hint" style="margin-top:4px"><strong>Tip:</strong> If your browser is logged into a different Atlassian account,
+          <a href="#" onclick="showAuthUrl(); return false;" style="color:#0c66e4;">show the auth URL</a>
+          to copy and open in an incognito/private window.</p>
+        <div id="auth-url-box" style="display:none; margin-top:8px;">
+          <input id="auth-url-input" type="text" readonly style="width:100%; font-size:11px; padding:6px; border:1px solid #ddd; border-radius:4px; background:#f5f5f5;" />
+          <p class="auth-hint" style="margin-top:4px;">Select all → Copy → Open in incognito window</p>
+        </div>
+      </div>
+      <div id="auth-verify" style="display:none">
+        <p class="auth-hint">Paste the verification code from the browser:</p>
+        <div class="code-input">
+          <input type="text" id="verify-code-input" placeholder="Paste code here…" />
+          <button class="btn-primary" id="verify-btn" onclick="submitCode()">Verify</button>
+        </div>
+        <p id="verify-error" class="error" style="margin-top:4px; font-size:11px; display:none"></p>
+      </div>
+      <div id="auth-connected" style="display:none">
+        <span class="connected">✓ Connected to Jira</span>
+        <span id="auth-instance" style="font-size:11px; color:#666; margin-left:6px;"></span>
+      </div>
+    </div>
+
+    <!-- Search Section -->
+    <div id="search-section" style="display:none">
+      <h3>Search Issues</h3>
+      <div class="presets">
+        <button class="btn-sm" onclick="setJql('sprint in openSprints() ORDER BY rank')">Open Sprint</button>
+        <button class="btn-sm" onclick="setJql('type = Story AND sprint in openSprints() ORDER BY rank')">Stories</button>
+        <button class="btn-sm" onclick="setJql('type = Bug AND status != Done ORDER BY priority')">Bugs</button>
+        <button class="btn-sm" onclick="setJql('type = Epic AND status != Done ORDER BY rank')">Epics</button>
+      </div>
+      <div class="jql-row">
+        <input type="text" id="jql-input" placeholder='project = CRT AND sprint in openSprints()' onkeydown="if(event.key==='Enter')doSearch()" />
+        <button class="btn-primary" id="exec-btn" onclick="doSearch()">Search</button>
+      </div>
+      <div id="results-header" style="display:none">
+        <div class="result-count" id="result-count"></div>
+        <div class="select-actions">
+          <a onclick="selectAll()">Select all</a>
+          <a onclick="selectNone()">Clear selection</a>
+        </div>
+      </div>
+      <div id="results" class="results"></div>
+      <div class="footer">
+        <span id="sp-total" style="font-size:11px; color:#626F86;"></span>
+        <button class="btn-primary" id="add-btn" disabled onclick="addSelected()">Add Selected to Canvas</button>
+      </div>
+    </div>
+
+    <!-- Edit Section (shown when widget sends edit-mode) -->
+    <div id="edit-section" style="display:none">
+      <h3 id="edit-title">Edit Issue</h3>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Summary</label>
+        <input type="text" id="edit-summary" style="width:100%; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Story Points</label>
+        <input type="number" id="edit-points" min="0" max="100" step="0.5" style="width:80px; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Status</label>
+        <span id="edit-status" class="status-badge" style="display:inline-block;"></span>
+        <span style="font-size:10px; color:#B3BAC5; margin-left:6px;">(change in Jira)</span>
+      </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+        <button class="btn-sm" onclick="send('cancel-edit')">Cancel</button>
+        <button class="btn-primary" id="save-btn" onclick="saveEdit()">Save to Jira</button>
+      </div>
+      <p id="edit-error" class="error" style="margin-top:8px; font-size:11px; display:none"></p>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'https://jira-figjam-plugin.vercel.app';
+    let _token = null;
+    let _issues = [];
+    let _selected = new Set();
+
+    function send(type, data) {
+      parent.postMessage({ pluginMessage: { type, ...data } }, '*');
+    }
+
+    // Listen for messages from widget code
+    window.onmessage = (e) => {
+      const msg = e.data?.pluginMessage;
+      if (!msg) return;
+      if (msg.type === 'set-token') {
+        _token = msg.token;
+        showConnected(msg.instance);
+      }
+      if (msg.type === 'auth-error') {
+        showVerifyError(msg.error);
+      }
+      if (msg.type === 'edit-mode') {
+        enterEditMode(msg.issue, msg.token, msg.instance);
+      }
+    };
+
+    // --- Auth flow ---
+    function startAuth() {
+      send('open-auth');
+      // Show the verification code input
+      document.getElementById('auth-connect').style.display = 'none';
+      document.getElementById('auth-verify').style.display = 'block';
+      document.getElementById('verify-code-input').focus();
+    }
+
+    function copyAuthUrl() {
+      var url = API_BASE + '/api/jira-auth';
+      var input = document.getElementById('auth-url-input');
+      input.value = url;
+      document.getElementById('auth-url-box').style.display = 'block';
+      input.select();
+    }
+
+    function showAuthUrl() {
+      var url = API_BASE + '/api/jira-auth';
+      var input = document.getElementById('auth-url-input');
+      input.value = url;
+      document.getElementById('auth-url-box').style.display = 'block';
+      input.select();
+      // Also show verify input
+      document.getElementById('auth-verify').style.display = 'block';
+    }
+
+    function submitCode() {
+      const code = document.getElementById('verify-code-input').value.trim();
+      if (!code) return;
+      document.getElementById('verify-btn').disabled = true;
+      document.getElementById('verify-btn').textContent = 'Verifying…';
+      document.getElementById('verify-error').style.display = 'none';
+      send('verify-code', { code });
+    }
+
+    function showVerifyError(msg) {
+      const el = document.getElementById('verify-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+      document.getElementById('verify-btn').disabled = false;
+      document.getElementById('verify-btn').textContent = 'Verify';
+    }
+
+    function showConnected(instance) {
+      document.getElementById('auth-section').querySelectorAll('#auth-connect, #auth-verify').forEach(el => el.style.display = 'none');
+      document.getElementById('auth-connected').style.display = 'block';
+      document.getElementById('auth-instance').textContent = instance || '';
+      document.getElementById('search-section').style.display = 'block';
+    }
+
+    // --- JQL presets ---
+    function setJql(jql) {
+      document.getElementById('jql-input').value = jql;
+      doSearch();
+    }
+
+    // --- Search ---
+    async function doSearch() {
+      const jql = document.getElementById('jql-input').value.trim();
+      if (!jql) return;
+      const btn = document.getElementById('exec-btn');
+      btn.disabled = true;
+      btn.textContent = 'Searching…';
+      document.getElementById('results').innerHTML = '<div class="msg">Searching…</div>';
+      document.getElementById('results-header').style.display = 'none';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/jira-search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${_token}`,
+          },
+          body: JSON.stringify({ jql }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Search failed');
+        _issues = (data.issues || []).map(normalizeIssue);
+        _selected.clear();
+        renderResults();
+      } catch (err) {
+        document.getElementById('results').textContent = err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Search';
+      }
+    }
+
+    // --- Normalize Jira response ---
+    function normalizeIssue(raw) {
+      const f = raw.fields || {};
+      // Extract plain text from ADF description
+      var desc = '';
+      if (typeof f.description === 'string') {
+        desc = f.description;
+      } else if (f.description && f.description.content) {
+        desc = extractAdfText(f.description);
+      }
+      return {
+        key: raw.key,
+        summary: f.summary || '',
+        description: desc,
+        status: f.status?.name || 'Unknown',
+        statusCategory: f.status?.statusCategory?.key || 'new',
+        issueType: f.issuetype?.name || 'Task',
+        issueTypeIconUrl: f.issuetype?.iconUrl || '',
+        priority: f.priority?.name || 'Medium',
+        priorityIconUrl: f.priority?.iconUrl || '',
+        assignee: f.assignee?.displayName || 'Unassigned',
+        storyPoints: f.customfield_10016 ?? null,
+        sprint: extractSprint(f.customfield_10020),
+        epicKey: f.parent?.key || f.customfield_10014 || null,
+        labels: Array.isArray(f.labels) ? f.labels : [],
+        projectKey: raw.key ? raw.key.split('-')[0] : '',
+      };
+    }
+
+    function extractAdfText(adf) {
+      if (!adf) return '';
+      if (adf.type === 'text') return adf.text || '';
+      if (adf.type === 'hardBreak') return '\n';
+      if (!adf.content) return '';
+      var parts = [];
+      for (var i = 0; i < adf.content.length; i++) {
+        var child = adf.content[i];
+        var text = extractAdfText(child);
+        if (child.type === 'paragraph' || child.type === 'heading') parts.push(text + '\n');
+        else if (child.type === 'listItem') parts.push('• ' + text + '\n');
+        else parts.push(text);
+      }
+      return parts.join('').trim();
+    }
+
+    function extractSprint(sprintField) {
+      if (!sprintField) return null;
+      const arr = Array.isArray(sprintField) ? sprintField : [sprintField];
+      const active = arr.find(s => s.state === 'active') || arr[arr.length - 1];
+      return active?.name || null;
+    }
+
+    function statusColor(category) {
+      if (category === 'done') return '#22a06b';
+      if (category === 'indeterminate') return '#0c66e4';
+      return '#626f86';
+    }
+
+    function typeColor(type) {
+      const map = { Epic:'#904EE2', Feature:'#904EE2', Story:'#63BA3C', 'Tech Story':'#63BA3C', Bug:'#E5493A', Task:'#4BAEE8', Spike:'#F79232', Enabler:'#F79232' };
+      return map[type] || '#626F86';
+    }
+
+    // --- HTML escape to prevent XSS ---
+    function esc(str) {
+      var d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // --- Render results ---
+    function renderResults() {
+      const el = document.getElementById('results');
+      if (!_issues.length) {
+        el.innerHTML = '<div class="msg">No results found. Try a different JQL query or check your project key.</div>';
+        document.getElementById('results-header').style.display = 'none';
+        updateFooter();
+        return;
+      }
+      document.getElementById('results-header').style.display = 'block';
+      document.getElementById('result-count').textContent = `${_issues.length} issue${_issues.length !== 1 ? 's' : ''} found`;
+
+      el.innerHTML = _issues.map((iss, i) => `
+        <label class="issue-row">
+          <input type="checkbox" data-idx="${i}" onchange="toggleSelect(${i}, this.checked)" />
+          <span class="issue-type" style="color:${typeColor(iss.issueType)}">${esc(iss.issueType)}</span>
+          <span class="issue-key">${esc(iss.key)}</span>
+          <span class="issue-summary" title="${esc(iss.summary)}">${esc(iss.summary)}</span>
+          <span class="issue-pts">${iss.storyPoints != null ? esc(String(iss.storyPoints)) : ''}</span>
+          <span class="status-badge" style="background:${statusColor(iss.statusCategory)}20; color:${statusColor(iss.statusCategory)}">${esc(iss.status)}</span>
+        </label>
+      `).join('');
+      updateFooter();
+    }
+
+    function toggleSelect(idx, checked) {
+      if (checked) _selected.add(idx); else _selected.delete(idx);
+      updateFooter();
+    }
+
+    function selectAll() {
+      _issues.forEach((_, i) => _selected.add(i));
+      document.querySelectorAll('#results input[type="checkbox"]').forEach(cb => cb.checked = true);
+      updateFooter();
+    }
+
+    function selectNone() {
+      _selected.clear();
+      document.querySelectorAll('#results input[type="checkbox"]').forEach(cb => cb.checked = false);
+      updateFooter();
+    }
+
+    function updateFooter() {
+      const btn = document.getElementById('add-btn');
+      btn.disabled = _selected.size === 0;
+      btn.textContent = _selected.size ? `Add ${_selected.size} to Canvas` : 'Add Selected to Canvas';
+
+      // Show total story points for selected
+      const sp = [..._selected].reduce((sum, i) => sum + (_issues[i]?.storyPoints || 0), 0);
+      document.getElementById('sp-total').textContent = _selected.size > 0 ? sp + ' SP selected' : '';
+      document.getElementById('sp-total').className = _selected.size > 0 ? 'sp-badge' : '';
+    }
+
+    function addSelected() {
+      const issues = [..._selected].map(i => _issues[i]);
+      send('add-issues', { issues });
+    }
+
+    // --- Edit mode ---
+    let _editIssue = null;
+
+    function enterEditMode(issue, token, instance) {
+      _token = token;
+      _editIssue = issue;
+      // Hide search UI, show edit UI
+      document.getElementById('auth-section').style.display = 'none';
+      document.getElementById('search-section').style.display = 'none';
+      document.getElementById('edit-section').style.display = 'block';
+
+      document.getElementById('edit-title').textContent = `Edit ${issue.key}`;
+      document.getElementById('edit-summary').value = issue.summary;
+      document.getElementById('edit-points').value = issue.storyPoints != null ? issue.storyPoints : '';
+
+      const statusEl = document.getElementById('edit-status');
+      const sc = statusColor(issue.statusCategory);
+      statusEl.style.background = sc + '20';
+      statusEl.style.color = sc;
+      statusEl.textContent = issue.status;
+    }
+
+    async function saveEdit() {
+      if (!_editIssue || !_token) return;
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      document.getElementById('edit-error').style.display = 'none';
+
+      const newSummary = document.getElementById('edit-summary').value.trim();
+      const newPoints = document.getElementById('edit-points').value;
+
+      const fields = {};
+      const updates = {};
+
+      if (newSummary && newSummary !== _editIssue.summary) {
+        fields.summary = newSummary;
+        updates.summary = newSummary;
+      }
+
+      const pointsVal = newPoints === '' ? null : parseFloat(newPoints);
+      if (pointsVal !== _editIssue.storyPoints) {
+        fields.customfield_10016 = pointsVal;
+        updates.storyPoints = pointsVal;
+      }
+
+      if (Object.keys(fields).length === 0) {
+        send('cancel-edit');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/jira-update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${_token}`,
+          },
+          body: JSON.stringify({ key: _editIssue.key, fields }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Update failed');
+        send('save-issue', { key: _editIssue.key, updates });
+      } catch (err) {
+        document.getElementById('edit-error').textContent = err.message;
+        document.getElementById('edit-error').style.display = 'block';
+        send('edit-error', { error: err.message });
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save to Jira';
+      }
+    }
+  </script>
+</body>
+</html>

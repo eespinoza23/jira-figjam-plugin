@@ -1,9 +1,9 @@
 {
   "id": "5272791085778441000",
   "name": "Jira Multi-Import for FigJam",
-  "api": "1.0.0",
+  "widgetApi": "1.0.0",
   "editorType": ["figjam"],
-  "main": "https://jira-figjam-plugin.vercel.app/code.js",
-  "ui": "https://jira-figjam-plugin.vercel.app/ui.html",
+  "main": "dist/code.js",
+  "ui": "dist/index.html",
   "documentAccess": "dynamic-page"
 }

@@ -1,5 +1,5 @@
 {
   "buildCommand": "npm run build && npm run build:vercel",
-  "devCommand": "npm run dev",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "devCommand": "npm run dev"
 }
