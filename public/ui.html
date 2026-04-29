@@ -615,13 +615,17 @@ window.addEventListener('message', function(evt) {
 
   if (msg.type === 'ready') { checkAuth(); }
 
-  if (msg.type === 'session-data' && msg.instance && !authenticated) {
-    instance = msg.instance;
-    var inp = document.getElementById('instance-input');
-    if (inp) inp.value = msg.instance;
-    document.getElementById('auth-btn').textContent = '🔄 Reconnect to Jira';
-    document.getElementById('auth-btn').disabled = false;
-    document.getElementById('logout-btn').style.display = 'block';
+  if (msg.type === 'session-data') {
+    // Restore persisted nodeMap so canvas card updates work after reopen
+    if (msg.nodeMap) { var k; for (k in msg.nodeMap) nodeMap[k] = msg.nodeMap[k]; }
+    if (msg.instance && !authenticated) {
+      instance = msg.instance;
+      var inp = document.getElementById('instance-input');
+      if (inp) inp.value = msg.instance;
+      document.getElementById('auth-btn').textContent = '🔄 Reconnect to Jira';
+      document.getElementById('auth-btn').disabled = false;
+      document.getElementById('logout-btn').style.display = 'block';
+    }
   }
 
   if (msg.type === 'added-to-canvas') {
@@ -640,12 +644,32 @@ window.addEventListener('message', function(evt) {
   }
 
   if (msg.type === 'edit-card' && msg.key) {
-    if (imported.some(function(i) { return i.key === msg.key; })) {
+    var editKey = msg.key;
+    var showEditUI = function() {
       document.getElementById('idle').style.display = 'none';
       document.getElementById('sel-bar').style.display = 'flex';
       document.getElementById('results-wrap').style.display = 'flex';
       document.getElementById('imp-sel').style.display = 'block';
-      expandCard(msg.key);
+      expandCard(editKey);
+    };
+    if (imported.some(function(i) { return i.key === editKey; })) {
+      showEditUI();
+    } else if (_token) {
+      // Issue not in list — fetch it from Jira then show edit panel
+      fetch(API + '/api/jira-search', {
+        method: 'POST',
+        headers: apiHeaders(),
+        body: JSON.stringify({jql: 'key = ' + editKey})
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var fresh = d.issues && d.issues[0];
+        if (!fresh) return;
+        var normalized = normalizeIssue(fresh);
+        imported.push(normalized);
+        showEditUI();
+      })
+      .catch(function() {});
     }
   }
 });

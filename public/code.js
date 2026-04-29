@@ -1,6 +1,6 @@
 figma.showUI(__html__, { width: 380, height: 640 });
 
-// Reverse lookup: frameId → issue key, populated when cards are added to canvas
+// Reverse lookup: frameId → issue key. Restored from storage on launch.
 var frameToKey = {};
 
 figma.on('selectionchange', function() {
@@ -9,6 +9,14 @@ figma.on('selectionchange', function() {
   var key = frameToKey[sel[0].id];
   if (key) figma.ui.postMessage({ type: 'edit-card', key: key });
 });
+
+// Restore frameToKey from storage so canvas clicks work after plugin reopen
+figma.clientStorage.getAsync('frameMap').then(function(saved) {
+  if (saved) {
+    var k;
+    for (k in saved) frameToKey[k] = saved[k];
+  }
+}).catch(function() {});
 
 var TYPE_COLORS = {
   Epic: '#7C3AED', Feature: '#0284C7', Story: '#2563EB',
@@ -182,12 +190,16 @@ figma.ui.onmessage = async function(msg) {
     try { await figma.clientStorage.setAsync('session', { instance: msg.instance }); } catch (_) {}
   }
   if (msg.type === 'get-session') {
-    var s = null;
+    var s = null, nm = null;
     try { s = await figma.clientStorage.getAsync('session'); } catch (_) {}
-    figma.ui.postMessage({ type: 'session-data', instance: s && s.instance || null });
+    try { nm = await figma.clientStorage.getAsync('nodeMap'); } catch (_) {}
+    figma.ui.postMessage({ type: 'session-data', instance: s && s.instance || null, nodeMap: nm || null });
   }
   if (msg.type === 'clear-session') {
     try { await figma.clientStorage.removeAsync('session'); } catch (_) {}
+    try { await figma.clientStorage.removeAsync('nodeMap'); } catch (_) {}
+    try { await figma.clientStorage.removeAsync('frameMap'); } catch (_) {}
+    frameToKey = {};
   }
   if (msg.type === 'open-external') {
     figma.openExternal(msg.url);
@@ -282,6 +294,23 @@ figma.ui.onmessage = async function(msg) {
 
     figma.currentPage.selection = allFrames;
     figma.viewport.scrollAndZoomIntoView(allFrames);
+
+    // Persist nodeMap and frameMap so state survives plugin reopen
+    try {
+      var savedNm = await figma.clientStorage.getAsync('nodeMap');
+      var mergedNm = savedNm || {};
+      var k2;
+      for (k2 in nodeMap) mergedNm[k2] = nodeMap[k2];
+      await figma.clientStorage.setAsync('nodeMap', mergedNm);
+    } catch (_) {}
+    try {
+      var savedFm = await figma.clientStorage.getAsync('frameMap');
+      var mergedFm = savedFm || {};
+      var k3;
+      for (k3 in frameToKey) mergedFm[k3] = frameToKey[k3];
+      await figma.clientStorage.setAsync('frameMap', mergedFm);
+    } catch (_) {}
+
     figma.ui.postMessage({ type: 'added-to-canvas', count: issues.length, nodeMap: nodeMap });
   }
 
