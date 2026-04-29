@@ -38,11 +38,13 @@ if (fs.existsSync(srcManifest)) {
   console.log('✓ Copied manifest.json');
 }
 
-// Copy index.html to root
-const srcIndex = path.join(srcPublic, 'index.html');
-if (fs.existsSync(srcIndex)) {
-  fs.copyFileSync(srcIndex, path.join(destDir, 'index.html'));
-  console.log('✓ Copied index.html to root');
-}
+// Copy plugin files to root (manifest references /ui.html and /code.js directly)
+['index.html', 'ui.html', 'code.js'].forEach(file => {
+  const src = path.join(srcPublic, file);
+  if (fs.existsSync(src)) {
+    fs.copyFileSync(src, path.join(destDir, file));
+    console.log(`✓ Copied ${file} to root`);
+  }
+});
 
 console.log('Build complete: dist/');
