@@ -1,6 +1,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import axios from 'axios';
 import crypto from 'crypto';
+import { redisSet } from './_redis';
 
 const validateInstance = (i: string) => /^[a-z0-9-]+\.atlassian\.net$/.test(i.toLowerCase());
 
@@ -27,15 +28,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       redirect_uri: `https://${appUrl}/api/jira-callback`,
     });
 
-    // Store tokens server-side if sessionId provided
+    // Store tokens directly in Redis (no HTTP self-call)
     if (sessionId) {
-      await axios.post(`https://${appUrl}/api/jira-callback-status`, {
-        sessionId,
+      const tokenData = JSON.stringify({
         accessToken: tok.data.access_token,
         refreshToken: tok.data.refresh_token,
         instance: rawInstance.toLowerCase(),
         expiresIn: tok.data.expires_in,
-      }).catch(() => {}); // Fail silently if storage fails
+      });
+      await redisSet(`token:${sessionId}`, tokenData);
     }
 
     res.setHeader('Content-Type', 'text/html');
