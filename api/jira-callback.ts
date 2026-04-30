@@ -62,9 +62,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 </div>
 </div>
 </body></html>`);
-  } catch (err) {
+  } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('Token exchange failed:', msg);
-    res.status(500).json({ error: 'Authentication failed. Please try again.' });
+    const responseData = err?.response?.data;
+    console.error('Token exchange failed:', msg, responseData);
+    const appUrl = process['env']['APP_URL'] || process['env']['VERCEL_PROJECT_PRODUCTION_URL'] || process['env']['VERCEL_URL'];
+    res.status(500).json({
+      error: 'Authentication failed. Please try again.',
+      debug: { msg, responseData, appUrl, redirectUri: `https://${appUrl}/api/jira-callback` }
+    });
   }
 }
