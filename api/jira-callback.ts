@@ -7,12 +7,15 @@ const validateInstance = (i: string) => /^[a-z0-9-]+\.atlassian\.net$/.test(i.to
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { code, state, sessionId } = req.query;
+  const { code, state } = req.query;
   const rawInstance = req.cookies.jira_instance || process['env']['JIRA_INSTANCE_URL'] || '';
 
   if (!validateInstance(rawInstance)) return res.status(400).json({ error: 'Invalid Jira instance' });
   if (state !== req.cookies.oauth_state) return res.status(400).json({ error: 'State mismatch' });
   if (!code) return res.status(400).json({ error: 'No auth code' });
+
+  // Extract sessionId from state (format: "sessionId:randomBytes" or just "randomBytes")
+  const sessionId = typeof state === 'string' && state.includes(':') ? state.split(':')[0] : null;
 
   try {
     const appUrl = process['env']['APP_URL'] || process['env']['VERCEL_PROJECT_PRODUCTION_URL'] || process['env']['VERCEL_URL'];

@@ -21,9 +21,11 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const cleanInstance = instanceParam ? instanceParam.toLowerCase() : process.env.JIRA_INSTANCE_URL;
   // APP_URL is stable; VERCEL_PROJECT_PRODUCTION_URL is set by Vercel for prod; VERCEL_URL is per-deployment
   const appUrl = process.env.APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-  const redirectUri = `https://${appUrl}/api/jira-callback${sessionId ? '?sessionId=' + encodeURIComponent(sessionId) : ''}`;
+  const redirectUri = `https://${appUrl}/api/jira-callback`;
   const scope = 'read:me read:jira-work write:jira-work read:jira-user offline_access';
-  const state = randomBytes(16).toString('hex');
+  // Encode sessionId in state for retrieval in callback
+  const stateRandom = randomBytes(16).toString('hex');
+  const state = sessionId ? `${sessionId}:${stateRandom}` : stateRandom;
 
   res.setHeader('Set-Cookie', [
     `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=600`,
