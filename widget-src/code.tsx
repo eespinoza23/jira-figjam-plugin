@@ -223,8 +223,11 @@ function JiraIssueCard() {
           }
 
           if (msg.type === 'open-auth') {
-            // Iframe will open auth window and handle postMessage callback
-            figma.ui.postMessage({ type: 'open-auth', instance: msg.instance });
+            // Open auth window via FigJam API (opens in browser)
+            const inst = msg.instance ? encodeURIComponent(msg.instance) : '';
+            const sessionId = msg.sessionId ? encodeURIComponent(msg.sessionId) : '';
+            const authUrl = `${API_BASE}/api/jira-auth${inst ? '?instance=' + inst : ''}${sessionId ? (inst ? '&' : '?') + 'sessionId=' + sessionId : ''}`;
+            figma.openExternal(authUrl);
           }
 
           if (msg.type === 'jira-auth-callback' && msg.data) {

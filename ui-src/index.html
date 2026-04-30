@@ -301,23 +301,16 @@
     function startAuth() {
       var inst = getInstance();
       if (!inst) { alert('Enter your Jira instance first (e.g. yourorg.atlassian.net)'); return; }
-      openAuthWindow(inst);
+      const sessionId = 'sess_' + Math.random().toString(36).slice(2) + '_' + Date.now();
       document.getElementById('auth-connect').style.display = 'none';
       document.getElementById('auth-verify').style.display = 'block';
+      // Ask widget to open auth window and pass sessionId for polling
+      send('open-auth', { instance: inst, sessionId: sessionId });
+      startTokenPolling(sessionId);
     }
 
-    function openAuthWindow(instance) {
-      const sessionId = 'sess_' + Math.random().toString(36).slice(2) + '_' + Date.now();
-      const url = API_BASE + '/api/jira-auth' + (instance ? '?instance=' + encodeURIComponent(instance) : '') + '&sessionId=' + sessionId;
-      const w = window.open(url, 'jira-auth', 'width=600,height=700');
-      if (!w) { alert('Failed to open auth window. Check pop-up blocker.'); return; }
-
-      // Poll for tokens server-side
+    function startTokenPolling(sessionId) {
       const pollInterval = setInterval(async () => {
-        if (w?.closed) {
-          clearInterval(pollInterval);
-          return;
-        }
         try {
           const res = await fetch(`${API_BASE}/api/jira-callback-status?sessionId=${sessionId}`);
           const data = await res.json();
@@ -325,20 +318,14 @@
             clearInterval(pollInterval);
             const { accessToken, refreshToken, instance } = data.tokens;
             send('jira-auth-callback', { data: { accessToken, refreshToken, instance } });
-            if (w && !w.closed) w.close();
           }
         } catch (err) {
           console.error('Token poll error:', err);
         }
-      }, 500); // Poll every 500ms
+      }, 800); // Poll every 800ms for ~10 minutes
 
-      // Clean up if window closes
-      const checkClosed = setInterval(() => {
-        if (w?.closed) {
-          clearInterval(checkClosed);
-          clearInterval(pollInterval);
-        }
-      }, 1000);
+      // Stop polling after 10 minutes
+      setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
     }
 
     function showAuthUrl() {
