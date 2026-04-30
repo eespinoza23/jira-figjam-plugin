@@ -305,6 +305,7 @@
 
     let _currentSessionId = null;
     let _currentPollingInterval = null;
+    let _currentPollingTimeout = null;
 
     function startAuth() {
       var inst = getInstance();
@@ -321,6 +322,7 @@
 
     function cancelAuth() {
       if (_currentPollingInterval) clearInterval(_currentPollingInterval);
+      if (_currentPollingTimeout) { clearTimeout(_currentPollingTimeout); _currentPollingTimeout = null; }
       _currentSessionId = null;
       document.getElementById('auth-connect').style.display = 'block';
       document.getElementById('auth-verify').style.display = 'none';
@@ -346,6 +348,7 @@
           if (data.ready && data.tokens) {
             clearInterval(_currentPollingInterval);
             _currentPollingInterval = null;
+            if (_currentPollingTimeout) { clearTimeout(_currentPollingTimeout); _currentPollingTimeout = null; }
             const { accessToken, refreshToken, instance } = data.tokens;
             send('jira-auth-callback', { data: { accessToken, refreshToken, instance } });
           }
@@ -355,7 +358,7 @@
       }, 800); // Poll every 800ms for ~10 minutes
 
       // Stop polling after 10 minutes
-      const timeout = setTimeout(() => {
+      _currentPollingTimeout = setTimeout(() => {
         if (_currentPollingInterval) {
           clearInterval(_currentPollingInterval);
           _currentPollingInterval = null;

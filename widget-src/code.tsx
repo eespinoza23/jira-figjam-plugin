@@ -236,7 +236,7 @@ function JiraIssueCard() {
               const { accessToken, refreshToken, instance } = msg.data;
               if (accessToken && instance) {
                 await storeTokens(accessToken, refreshToken, instance);
-                figma.ui.postMessage({ type: 'set-token', token: accessToken, instance });
+                figma.ui.postMessage({ type: 'set-token', token: accessToken, refreshToken: refreshToken || '', instance });
                 figma.notify('Connected to Jira!');
               }
             } catch (e) {
@@ -263,7 +263,7 @@ function JiraIssueCard() {
               const data = JSON.parse(text);
               if (data.ok && data.access_token) {
                 await storeTokens(data.access_token, data.refresh_token, data.instance);
-                figma.ui.postMessage({ type: 'set-token', token: data.access_token, instance: data.instance });
+                figma.ui.postMessage({ type: 'set-token', token: data.access_token, refreshToken: data.refresh_token || '', instance: data.instance });
                 figma.notify('Connected to Jira!');
               } else {
                 figma.ui.postMessage({ type: 'auth-error', error: data.error || 'Invalid code' });
