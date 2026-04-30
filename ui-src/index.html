@@ -307,33 +307,36 @@
     }
 
     function openAuthWindow(instance) {
-      const url = API_BASE + '/api/jira-auth' + (instance ? '?instance=' + encodeURIComponent(instance) : '');
+      const sessionId = 'sess_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+      const url = API_BASE + '/api/jira-auth' + (instance ? '?instance=' + encodeURIComponent(instance) : '') + '&sessionId=' + sessionId;
       const w = window.open(url, 'jira-auth', 'width=600,height=700');
       if (!w) { alert('Failed to open auth window. Check pop-up blocker.'); return; }
 
-      // Listen for postMessage from callback window
-      const handleAuthCallback = (e) => {
-        if (e.data?.type === 'jira-auth-callback' && e.data?.data) {
-          window.removeEventListener('message', handleAuthCallback);
-          try {
-            const { accessToken, refreshToken, instance } = e.data.data;
-            if (accessToken && instance) {
-              // Send tokens to widget code.tsx
-              send('jira-auth-callback', { data: { accessToken, refreshToken, instance } });
-              // Close callback window if still open
-              if (w && !w.closed) w.close();
-            }
-          } catch (err) {
-            console.error('Auth callback error:', err);
-          }
+      // Poll for tokens server-side
+      const pollInterval = setInterval(async () => {
+        if (w?.closed) {
+          clearInterval(pollInterval);
+          return;
         }
-      };
-      window.addEventListener('message', handleAuthCallback);
-      // Clean up listener if window closes without sending message
+        try {
+          const res = await fetch(`${API_BASE}/api/jira-callback-status?sessionId=${sessionId}`);
+          const data = await res.json();
+          if (data.ready && data.tokens) {
+            clearInterval(pollInterval);
+            const { accessToken, refreshToken, instance } = data.tokens;
+            send('jira-auth-callback', { data: { accessToken, refreshToken, instance } });
+            if (w && !w.closed) w.close();
+          }
+        } catch (err) {
+          console.error('Token poll error:', err);
+        }
+      }, 500); // Poll every 500ms
+
+      // Clean up if window closes
       const checkClosed = setInterval(() => {
         if (w?.closed) {
           clearInterval(checkClosed);
-          window.removeEventListener('message', handleAuthCallback);
+          clearInterval(pollInterval);
         }
       }, 1000);
     }

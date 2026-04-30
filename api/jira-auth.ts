@@ -12,6 +12,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
 
   const clientId = process.env.ATLASSIAN_CLIENT_ID;
   const instanceParam = req.query.instance as string;
+  const sessionId = req.query.sessionId as string;
 
   if (instanceParam && !validateInstance(instanceParam)) {
     return res.status(400).json({ error: 'Invalid Jira instance URL' });
@@ -20,7 +21,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   const cleanInstance = instanceParam ? instanceParam.toLowerCase() : process.env.JIRA_INSTANCE_URL;
   // APP_URL is stable; VERCEL_PROJECT_PRODUCTION_URL is set by Vercel for prod; VERCEL_URL is per-deployment
   const appUrl = process.env.APP_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-  const redirectUri = `https://${appUrl}/api/jira-callback`;
+  const redirectUri = `https://${appUrl}/api/jira-callback${sessionId ? '?sessionId=' + encodeURIComponent(sessionId) : ''}`;
   const scope = 'read:me read:jira-work write:jira-work read:jira-user offline_access';
   const state = randomBytes(16).toString('hex');
 
