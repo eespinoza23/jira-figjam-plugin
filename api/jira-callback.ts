@@ -51,25 +51,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Connected</title>
-<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}.card{background:white;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}h2{color:#16a34a;margin:0 0 8px}p{color:#4b5563;margin:0}.hint{font-size:12px;color:#9ca3af;margin-top:12px}.debug{font-size:10px;color:#aaa;margin-top:16px;text-align:left;word-break:break-all;}</style>
+<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}.card{background:white;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}h2{color:#16a34a;margin:0 0 8px}p{color:#4b5563;margin:0}.hint{font-size:12px;color:#9ca3af;margin-top:12px}</style>
+<script>window.onload=function(){setTimeout(function(){window.close()},1500)};</script>
 </head><body><div class="card">
 <h2>✓</h2>
 <p>Connected to Jira!</p>
-<div class="debug">
-  <b>sessionId:</b> ${sessionId || 'NULL'}<br>
-  <b>redis:</b> ${redisOk ? 'OK' : 'FAILED — ' + redisError}<br>
-  <b>instance:</b> ${rawInstance}
-</div>
+<p class="hint">This window will close automatically.</p>
 </div>
 </body></html>`);
   } catch (err: any) {
     const msg = err instanceof Error ? err.message : String(err);
-    const responseData = err?.response?.data;
-    console.error('Token exchange failed:', msg, responseData);
-    const appUrl = process['env']['APP_URL'] || process['env']['VERCEL_PROJECT_PRODUCTION_URL'] || process['env']['VERCEL_URL'];
-    res.status(500).json({
-      error: 'Authentication failed. Please try again.',
-      debug: { msg, responseData, appUrl, redirectUri: `https://${appUrl}/api/jira-callback` }
-    });
+    console.error('Token exchange failed:', msg, err?.response?.data);
+    res.status(500).json({ error: 'Authentication failed. Please try again.' });
   }
 }
