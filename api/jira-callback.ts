@@ -28,7 +28,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       redirect_uri: `https://${appUrl}/api/jira-callback`,
     });
 
-    // Store tokens directly in Redis (no HTTP self-call)
+    let redisOk = false;
+    let redisError = '';
     if (sessionId) {
       const tokenData = JSON.stringify({
         accessToken: tok.data.access_token,
@@ -36,7 +37,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         instance: rawInstance.toLowerCase(),
         expiresIn: tok.data.expires_in,
       });
-      await redisSet(`token:${sessionId}`, tokenData);
+      try {
+        await redisSet(`token:${sessionId}`, tokenData);
+        redisOk = true;
+      } catch (e: any) {
+        redisError = e.message || String(e);
+        console.error('Redis write failed:', redisError);
+      }
     }
 
     res.setHeader('Content-Type', 'text/html');
@@ -44,15 +51,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Connected</title>
-<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}.card{background:white;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}h2{color:#16a34a;margin:0 0 8px}p{color:#4b5563;margin:0}.hint{font-size:12px;color:#9ca3af;margin-top:12px}</style>
+<style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f0fdf4}.card{background:white;border-radius:12px;padding:32px;max-width:500px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,.1);text-align:center}h2{color:#16a34a;margin:0 0 8px}p{color:#4b5563;margin:0}.hint{font-size:12px;color:#9ca3af;margin-top:12px}.debug{font-size:10px;color:#aaa;margin-top:16px;text-align:left;word-break:break-all;}</style>
 </head><body><div class="card">
 <h2>✓</h2>
 <p>Connected to Jira!</p>
-<p class="hint">You can close this window. The plugin will update automatically.</p>
+<div class="debug">
+  <b>sessionId:</b> ${sessionId || 'NULL'}<br>
+  <b>redis:</b> ${redisOk ? 'OK' : 'FAILED — ' + redisError}<br>
+  <b>instance:</b> ${rawInstance}
 </div>
-<script>
-setTimeout(() => { window.close(); }, 2000);
-</script>
+</div>
 </body></html>`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
