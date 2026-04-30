@@ -392,30 +392,71 @@ function JiraIssueCard() {
 
   // --- Render: Placeholder ---
   if (isPlaceholder) {
+    var jiraMarkSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 32 32"><defs><linearGradient id="jg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#2684FF"/><stop offset="100%" stop-color="#0052CC"/></linearGradient></defs><path d="M27.3 14.8L17.2 4.7 16 3.5 7.5 12 4.7 14.8a.9.9 0 000 1.4l7.8 7.8L16 27.5l8.5-8.5.3-.3 2.5-2.5a.9.9 0 000-1.4zM16 19.5L12.5 16 16 12.5 19.5 16z" fill="url(#jg)"/></svg>';
     return (
       <AutoLayout
         direction="vertical"
-        padding={20}
-        cornerRadius={10}
+        cornerRadius={12}
         fill="#FFFFFF"
-        stroke="#DFE1E6"
+        stroke="#E8EAED"
         strokeWidth={1}
-        spacing={10}
-        width={260}
+        width={280}
+        overflow="hidden"
         effect={[
-          { type: 'drop-shadow', color: { r: 0, g: 0, b: 0, a: 0.06 }, offset: { x: 0, y: 2 }, blur: 8 },
-          { type: 'drop-shadow', color: { r: 0, g: 0, b: 0, a: 0.04 }, offset: { x: 0, y: 0 }, blur: 1 },
+          { type: 'drop-shadow', color: { r: 0, g: 0, b: 0, a: 0.08 }, offset: { x: 0, y: 4 }, blur: 16 },
+          { type: 'drop-shadow', color: { r: 0, g: 0, b: 0, a: 0.04 }, offset: { x: 0, y: 1 }, blur: 3 },
         ]}
       >
-        <AutoLayout direction="horizontal" spacing={6} verticalAlignItems="center">
-          <Text fontSize={16}>🔌</Text>
-          <Text fontSize={14} fill="#172B4D" fontWeight={700}>
-            Jira Multi-Import
-          </Text>
+        {/* Blue gradient header */}
+        <AutoLayout
+          direction="horizontal"
+          padding={{ top: 16, bottom: 16, left: 18, right: 18 }}
+          spacing={10}
+          verticalAlignItems="center"
+          width="fill-parent"
+          fill={{ type: 'gradient-linear', gradientStops: [{ color: { r: 0, g: 0.32, b: 0.8, a: 1 }, position: 0 }, { color: { r: 0.05, g: 0.4, b: 0.89, a: 1 }, position: 1 }], gradientHandlePositions: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }] }}
+        >
+          <SVG src={jiraMarkSvg} width={28} height={28} />
+          <AutoLayout direction="vertical" spacing={2}>
+            <Text fontSize={15} fill="#FFFFFF" fontWeight={700} letterSpacing={-0.3}>
+              Jira Multi-Import
+            </Text>
+            <Text fontSize={10} fill={{ r: 1, g: 1, b: 1, a: 0.7 }} fontWeight={400} letterSpacing={0.2}>
+              for FigJam
+            </Text>
+          </AutoLayout>
         </AutoLayout>
-        <Text fontSize={11} fill="#626F86" fontWeight={400} width={220} lineHeight={16}>
-          Select this widget, then use the property menu ▸ Add Issues to search and import Jira issues onto the canvas.
-        </Text>
+
+        {/* Body */}
+        <AutoLayout
+          direction="vertical"
+          padding={{ top: 16, bottom: 18, left: 18, right: 18 }}
+          spacing={14}
+          width="fill-parent"
+        >
+          <Text fontSize={12} fill="#44546F" fontWeight={400} width={244} lineHeight={18}>
+            Select this widget, then open the property menu and choose{' '}
+            <Text fontSize={12} fill="#0055CC" fontWeight={600}>Add Issues</Text>
+            {' '}to search and import Jira issues onto the canvas.
+          </Text>
+
+          {/* CTA hint */}
+          <AutoLayout
+            direction="horizontal"
+            padding={{ top: 8, bottom: 8, left: 12, right: 12 }}
+            cornerRadius={8}
+            fill="#F0F4FF"
+            stroke="#C7D9FF"
+            strokeWidth={1}
+            spacing={8}
+            verticalAlignItems="center"
+            width="fill-parent"
+          >
+            <Text fontSize={11} fill="#0055CC" fontWeight={600}>
+              ▸ Right-click or use property menu → Add Issues
+            </Text>
+          </AutoLayout>
+        </AutoLayout>
       </AutoLayout>
     );
   }
