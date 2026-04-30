@@ -45,6 +45,45 @@
     .skeleton { background: linear-gradient(90deg, #F4F5F7 25%, #EBECF0 50%, #F4F5F7 75%); background-size:200% 100%; animation: shimmer 1.2s infinite; border-radius:4px; }
     @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
     .readonly-field { padding:7px 10px; border:1px solid #EBECF0; border-radius:6px; font-size:12px; background:#F4F5F7; color:#505F79; min-height:33px; }
+
+    /* Auth screen */
+    .auth-card { background:#fff; border:1px solid #EBECF0; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+    .auth-card-header { background:linear-gradient(135deg,#0052CC 0%,#0c66e4 100%); padding:24px 20px 20px; text-align:center; }
+    .auth-logo { display:inline-flex; align-items:center; gap:10px; }
+    .auth-logo-icon { width:36px; height:36px; background:rgba(255,255,255,.2); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+    .auth-logo-icon svg { width:20px; height:20px; }
+    .auth-logo-text { color:#fff; font-size:16px; font-weight:700; letter-spacing:-0.3px; }
+    .auth-logo-sub { color:rgba(255,255,255,.7); font-size:11px; font-weight:400; display:block; margin-top:1px; }
+    .auth-card-body { padding:20px; }
+    .auth-field-label { font-size:11px; font-weight:600; color:#6B778C; letter-spacing:0.3px; text-transform:uppercase; display:block; margin-bottom:6px; }
+    .auth-input { width:100%; padding:9px 12px; border:1.5px solid #DFE1E6; border-radius:8px; font-size:13px; background:#FAFBFC; color:#172B4D; transition:all 0.15s; }
+    .auth-input:focus { outline:none; border-color:#0c66e4; background:#fff; box-shadow:0 0 0 3px #0c66e420; }
+    .auth-connect-btn { width:100%; padding:11px; background:linear-gradient(135deg,#0052CC,#0c66e4); color:#fff; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; margin-top:12px; transition:all 0.2s; box-shadow:0 2px 6px rgba(12,102,228,.3); letter-spacing:0.1px; }
+    .auth-connect-btn:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(12,102,228,.4); }
+    .auth-connect-btn:active { transform:translateY(0); }
+    .auth-divider { display:flex; align-items:center; gap:10px; margin:14px 0 0; }
+    .auth-divider-line { flex:1; height:1px; background:#EBECF0; }
+    .auth-divider-text { font-size:10px; color:#97A0AF; font-weight:500; }
+    .auth-incognito-link { display:block; text-align:center; font-size:11px; color:#0c66e4; text-decoration:none; margin-top:10px; cursor:pointer; font-weight:500; }
+    .auth-incognito-link:hover { text-decoration:underline; }
+    .auth-url-box { margin-top:10px; padding:10px; background:#F4F5F7; border-radius:8px; border:1px solid #DFE1E6; }
+    .auth-url-input { width:100%; font-size:10px; padding:6px 8px; border:1px solid #DFE1E6; border-radius:6px; background:#fff; color:#505F79; font-family:monospace; }
+    .auth-url-hint { font-size:10px; color:#97A0AF; margin-top:6px; text-align:center; }
+
+    /* Connecting state */
+    .auth-connecting { padding:28px 20px; text-align:center; }
+    .spinner-ring { width:40px; height:40px; border:3px solid #E5E7EB; border-top-color:#0c66e4; border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto 16px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .auth-connecting-title { font-size:14px; font-weight:600; color:#172B4D; margin-bottom:6px; }
+    .auth-connecting-sub { font-size:11px; color:#6B778C; line-height:1.5; max-width:200px; margin:0 auto 20px; }
+    .auth-connecting-actions { display:flex; gap:8px; justify-content:center; }
+    .auth-connecting-actions button { flex:1; max-width:100px; }
+
+    /* Connected state */
+    .auth-connected-row { display:flex; align-items:center; gap:10px; padding:10px 12px; background:#E3FCEF; border:1px solid #ABF5D1; border-radius:8px; }
+    .auth-connected-dot { width:8px; height:8px; background:#00875A; border-radius:50%; flex-shrink:0; }
+    .auth-connected-text { font-size:12px; font-weight:600; color:#006644; }
+    .auth-connected-instance { font-size:11px; color:#00875A; margin-left:auto; }
   </style>
 </head>
 <body>
@@ -52,34 +91,61 @@
     <!-- Auth Section -->
     <div id="auth-section" class="section">
       <div id="auth-connect">
-        <label style="font-size:11px; font-weight:600; color:#6B778C; display:block; margin-bottom:4px;">Jira Instance</label>
-        <input type="text" id="instance-input" placeholder="yourorg.atlassian.net" value="eespinoza.atlassian.net" style="width:100%; margin-bottom:8px; padding:8px 10px; border:1px solid #DFE1E6; border-radius:6px; font-size:12px; background:#fff;" />
-        <button class="btn-primary" onclick="startAuth()" style="width:100%;">Connect to Jira</button>
-        <p class="auth-hint" style="margin-top:8px">Opens Atlassian OAuth in your browser.</p>
-        <p class="auth-hint" style="margin-top:4px"><strong>Tip:</strong> If your browser is logged into a different Atlassian account,
-          <a href="#" onclick="showAuthUrl(); return false;" style="color:#0c66e4;">show the auth URL</a>
-          to copy and open in an incognito/private window.</p>
-        <div id="auth-url-box" style="display:none; margin-top:8px;">
-          <input id="auth-url-input" type="text" readonly style="width:100%; font-size:11px; padding:6px; border:1px solid #ddd; border-radius:4px; background:#f5f5f5;" />
-          <p class="auth-hint" style="margin-top:4px;">Select all → Copy → Open in incognito window</p>
+        <div class="auth-card">
+          <div class="auth-card-header">
+            <div class="auth-logo">
+              <div class="auth-logo-icon">
+                <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15.892 2C15.892 2 8.5 9.5 8.5 16C8.5 19.866 11.634 23 15.5 23C15.631 23 15.762 22.996 15.892 22.988V2Z" fill="white" opacity="0.6"/>
+                  <path d="M16.108 2V22.988C16.238 22.996 16.369 23 16.5 23C20.366 23 23.5 19.866 23.5 16C23.5 9.5 16.108 2 16.108 2Z" fill="white"/>
+                  <path d="M10 26C10 27.657 11.343 29 13 29H19C20.657 29 22 27.657 22 26V25H10V26Z" fill="white" opacity="0.8"/>
+                </svg>
+              </div>
+              <div>
+                <span class="auth-logo-text">Jira Multi-Import</span>
+                <span class="auth-logo-sub">for FigJam</span>
+              </div>
+            </div>
+          </div>
+          <div class="auth-card-body">
+            <label class="auth-field-label" for="instance-input">Jira Instance</label>
+            <input type="text" id="instance-input" class="auth-input" placeholder="yourorg.atlassian.net" value="eespinoza.atlassian.net" />
+            <button class="auth-connect-btn" onclick="startAuth()">Connect with Atlassian</button>
+            <div class="auth-divider">
+              <div class="auth-divider-line"></div>
+              <span class="auth-divider-text">different account?</span>
+              <div class="auth-divider-line"></div>
+            </div>
+            <a class="auth-incognito-link" onclick="showAuthUrl(); return false;">Open auth URL in incognito</a>
+            <div id="auth-url-box" style="display:none;" class="auth-url-box">
+              <input id="auth-url-input" type="text" readonly class="auth-url-input" />
+              <p class="auth-url-hint">Select all → Copy → Open in incognito/private window</p>
+            </div>
+          </div>
         </div>
       </div>
+
       <div id="auth-verify" style="display:none">
-        <p class="auth-hint">Connecting to Jira…</p>
-        <p class="auth-hint" style="margin-top:8px; font-size:10px; color:#626F86;">A browser window should open. If it doesn't appear, click "Allow" on any FigJam confirmation dialog.</p>
-        <div style="text-align:center; margin:16px 0;">
-          <div style="display:inline-block; width:24px; height:24px; border:3px solid #E5E7EB; border-top-color:#0c66e4; border-radius:50%; animation:spin 0.6s linear infinite;"></div>
+        <div class="auth-card">
+          <div class="auth-connecting">
+            <div class="spinner-ring"></div>
+            <div class="auth-connecting-title">Connecting to Jira…</div>
+            <div class="auth-connecting-sub">Authorize in the browser window that just opened. Return here when done.</div>
+            <div class="auth-connecting-actions">
+              <button class="btn-sm" onclick="cancelAuth()">Cancel</button>
+              <button class="btn-primary" id="retry-auth-btn" onclick="retryAuth()">Retry</button>
+            </div>
+            <p id="verify-error" class="error" style="margin-top:10px; font-size:11px; display:none"></p>
+          </div>
         </div>
-        <div style="display:flex; gap:8px; margin-top:12px;">
-          <button class="btn-sm" onclick="cancelAuth()" style="flex:1;">Cancel</button>
-          <button class="btn-primary" id="retry-auth-btn" onclick="retryAuth()" style="flex:1;">Retry</button>
-        </div>
-        <p id="verify-error" class="error" style="margin-top:8px; font-size:11px; display:none"></p>
-        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
       </div>
+
       <div id="auth-connected" style="display:none">
-        <span class="connected">✓ Connected to Jira</span>
-        <span id="auth-instance" style="font-size:11px; color:#666; margin-left:6px;"></span>
+        <div class="auth-connected-row">
+          <div class="auth-connected-dot"></div>
+          <span class="auth-connected-text">Connected to Jira</span>
+          <span id="auth-instance" class="auth-connected-instance"></span>
+        </div>
       </div>
     </div>
 
